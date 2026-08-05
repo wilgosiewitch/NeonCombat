@@ -26,6 +26,9 @@ canvas { width:100%; height:100%; display:block; cursor:crosshair; }
 button { margin-top:18px; padding:14px 18px; border:0; background:var(--lime); color:#080b0f; font:800 16px 'Barlow Condensed',sans-serif; letter-spacing:1.5px; cursor:pointer; box-shadow:5px 5px 0 #647f1f; transition:.12s; }
 button:hover { transform:translate(2px,2px); box-shadow:3px 3px 0 #647f1f; }
 button span { margin-left:22px; }
+.gameover-actions { display:flex; flex-wrap:wrap; gap:12px; }
+.secondary-button { background:#151b20; color:var(--lime); border:1px solid var(--lime); box-shadow:5px 5px 0 #34451c; }
+.secondary-button:hover { box-shadow:3px 3px 0 #34451c; }
 .roles { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-top:18px; }
 .role { margin:0; padding:12px; text-align:left; background:#11171c; color:#96a0a7; border:1px solid #303942; box-shadow:none; }
 .role:hover { transform:none; box-shadow:none; border-color:#71822f; }
@@ -51,6 +54,30 @@ button span { margin-left:22px; }
 .offer p { margin:0; color:#7d8791; font:400 10px/1.5 'JetBrains Mono',monospace; }
 .offer button { margin:0; white-space:nowrap; font-size:13px; }
 .offer button:disabled { cursor:not-allowed; transform:none; box-shadow:none; background:#323a3e; color:#69747a; }
+.ultra-offer { border-color:#665d24; background:rgba(255,216,77,.045); }
+.ultra-offer .offer-icon { color:#ffd84d; border-color:#756526; background:rgba(255,216,77,.08); }
+.fire-trail-offer { border-color:#754329; background:rgba(255,100,40,.045); }
+.fire-trail-offer .offer-icon { color:#ff713d; border-color:#85492b; background:rgba(255,100,40,.08); }
+.armor-offer { border-color:#286b68; background:rgba(88,255,209,.04); }
+.armor-offer .offer-icon { color:#58ffd1; border-color:#347c75; background:rgba(88,255,209,.08); }
+.regen-offer { border-color:#39702e; background:rgba(117,232,90,.04); }
+.regen-offer .offer-icon { color:#75e85a; border-color:#47883a; background:rgba(117,232,90,.08); }
+.damage-offer { border-color:#603477; background:rgba(190,88,255,.04); }
+.damage-offer .offer-icon { color:#c26aff; border-color:#70418a; background:rgba(190,88,255,.08); }
+.fire-trail-offer button:not(:disabled) { background:#ff713d; box-shadow:5px 5px 0 #74331f; }
+.armor-offer button:not(:disabled) { background:#58ffd1; box-shadow:5px 5px 0 #287565; }
+.regen-offer button:not(:disabled) { background:#75e85a; box-shadow:5px 5px 0 #376d2d; }
+.damage-offer button:not(:disabled) { background:#c26aff; box-shadow:5px 5px 0 #62327c; }
+.ultra-offer button:not(:disabled) { background:#ffd84d; box-shadow:5px 5px 0 #75611e; }
+.rapid-fire-offer { border-color:#315d89; background:rgba(72,155,255,.045); }
+.rapid-fire-offer .offer-icon { color:#59a9ff; border-color:#3c6e9e; background:rgba(72,155,255,.08); }
+.rapid-fire-offer button:not(:disabled) { background:#59a9ff; box-shadow:5px 5px 0 #28517a; }
+.player-hp-offer { border-color:#754044; background:rgba(255,90,105,.045); }
+.player-hp-offer .offer-icon { color:#ff6978; border-color:#8d4b52; background:rgba(255,90,105,.08); }
+.player-hp-offer button:not(:disabled) { background:#ff6978; box-shadow:5px 5px 0 #7d3540; }
+.dual-shot-offer { border-color:#75405f; background:rgba(255,92,180,.045); }
+.dual-shot-offer .offer-icon { color:#ff6fbd; border-color:#8b4b70; background:rgba(255,92,180,.08); }
+.dual-shot-offer button:not(:disabled) { background:#ff6fbd; box-shadow:5px 5px 0 #7b365d; }
 footer { display:flex; justify-content:space-between; font:400 9px 'JetBrains Mono',monospace; letter-spacing:2px; color:#5f6973; }
 .pulse { color:#8f9b84; } .pulse i { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--lime); box-shadow:0 0 8px var(--lime); margin-right:6px; animation:pulse 1.5s infinite; }
 .pulse b { font-weight:400; }
