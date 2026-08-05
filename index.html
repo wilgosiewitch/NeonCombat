@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Neonowy Szturm</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="game-shell">
+    <header>
+      <div>
+        <p class="eyebrow" data-i18n="sector">ARENA // SEKTOR 07</p>
+        <h1>NEONOWY SZTURM</h1>
+      </div>
+      <div class="controls">
+        <span><b>WASD</b> <i data-i18n="move">ruch</i></span>
+        <span><b data-i18n="mouse">MYSZ</b> <i data-i18n="aim">cel</i></span>
+        <span><b data-i18n="lmb">LPM</b> <i data-i18n="shoot">strzał</i></span>
+        <span><b data-i18n="space">SPACJA</b> dash</span>
+        <span><b>Z</b> <i data-i18n="turret">wieżyczka</i></span>
+        <span><b>E</b> <i data-i18n="ability">zdolność</i></span>
+        <span><b>B</b> <i data-i18n="shop">sklep</i></span>
+      </div>
+    </header>
+
+    <section class="arena-wrap">
+      <canvas id="game" width="1280" height="720" aria-label="Gra Neonowy Szturm"></canvas>
+      <div id="startScreen" class="overlay">
+        <div class="panel">
+          <div class="language-picker"><button data-lang="pl" class="active">PL</button><button data-lang="en">EN</button></div>
+          <p class="eyebrow" data-i18n="transmission">TRANSMISJA PRZECHWYCONA</p>
+          <h2 data-i18n="hero">Przetrwaj.<br><em>Zniszcz ich.</em></h2>
+          <p data-i18n="intro">Wrogie jednostki namierzyły twoją pozycję. Pozostań w ruchu, unikaj pocisków i oczyść kolejne fale.</p>
+          <div class="roles" aria-label="Wybór roli">
+            <button class="role active" data-role="medic"><strong data-i18n="role_medic">TECHNIK</strong><small data-i18n="desc_medic">[E] Naprawia wieżyczkę co 10 s</small></button>
+            <button class="role" data-role="tank"><strong>TANK</strong><small data-i18n="desc_tank">+25 punktów zdrowia</small></button>
+            <button class="role" data-role="billionaire"><strong data-i18n="role_billionaire">MILIARDER</strong><small data-i18n="desc_billionaire">500 energii • zarobki ×2</small></button>
+            <button class="role" data-role="assassin"><strong data-i18n="role_assassin">ASSASYN</strong><small data-i18n="desc_assassin">75 HP • obrażenia ×2 • szybkość ×1,5</small></button>
+            <button class="role" data-role="ghost"><strong data-i18n="role_ghost">DUCH</strong><small data-i18n="desc_ghost">[E] Niewidzialność na 7 s</small></button>
+            <button class="role" data-role="manipulator"><strong>MANIPULATOR</strong><small data-i18n="desc_manipulator">3 pociski przejęcia • +1 co 10 s</small></button>
+            <button class="role" data-role="engineer"><strong data-i18n="role_engineer">INŻYNIER</strong><small data-i18n="desc_engineer">[E] Pułapka • maks. 10</small></button>
+            <button class="role" data-role="ninja"><strong>NINJA</strong><small data-i18n="desc_ninja">[E] Odbija pociski przez 13 s</small></button>
+            <button class="role" data-role="madman"><strong data-i18n="role_madman">SZALENIEC</strong><small data-i18n="desc_madman">Podwójny strzał • [E] wybuch</small></button>
+          </div>
+          <button id="startBtn"><i data-i18n="start">WEJDŹ NA ARENĘ</i> <span>→</span></button>
+        </div>
+      </div>
+      <div id="gameOver" class="overlay hidden">
+        <div class="panel gameover-panel">
+          <p class="eyebrow" data-i18n="signal_lost">SYGNAŁ UTRACONY</p>
+          <h2 data-i18n="game_over">KONIEC <em>GRY</em></h2>
+          <p id="finalStats"></p>
+          <button id="restartBtn"><i data-i18n="retry">SPRÓBUJ PONOWNIE</i> <span>↻</span></button>
+        </div>
+      </div>
+      <div id="shopScreen" class="overlay shop-overlay hidden">
+        <div class="panel shop-panel">
+          <p class="eyebrow" data-i18n="paused">CZAS WSTRZYMANY // MAGAZYN</p>
+          <div class="shop-heading"><h2 data-i18n="shop_title">SKLEP</h2><strong id="shopEnergy">0 ENERGII</strong></div>
+          <div class="shop-offers">
+            <article class="offer">
+              <span class="offer-icon">⬡</span>
+              <div><h3 data-i18n="upgrade_title">WZMOCNIONY PANCERZ</h3><p data-i18n="upgrade_desc">Wszystkie wieżyczki otrzymują dwukrotnie więcej HP.</p></div>
+              <button id="turretHpUpgrade"><strong>500</strong> ENERGII</button>
+            </article>
+            <article class="offer">
+              <span class="offer-icon">✦</span>
+              <div><h3 data-i18n="damage_title">PRZECIĄŻONA BROŃ</h3><p data-i18n="damage_desc">Postać zadaje dwukrotnie więcej obrażeń.</p></div>
+              <button id="damageUpgrade"><strong>1000</strong> ENERGII</button>
+            </article>
+            <article class="offer">
+              <span class="offer-icon">+</span>
+              <div><h3 data-i18n="regen_title">NANOREGENERACJA</h3><p data-i18n="regen_desc">Odnawia 1 punkt zdrowia na sekundę.</p></div>
+              <button id="regenUpgrade"><strong>750</strong> ENERGII</button>
+            </article>
+          </div>
+          <button id="closeShopBtn"><i data-i18n="return">WRÓĆ DO WALKI</i> <span>[B]</span></button>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <span data-i18n="protocol">PROTOKÓŁ: OSTATNI OCALAŁY</span>
+      <span class="pulse"><i></i> <b data-i18n="online">SYSTEM ONLINE</b></span>
+    </footer>
+  </main>
+  <script src="game.js"></script>
+</body>
+</html>
