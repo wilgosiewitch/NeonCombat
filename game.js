@@ -1,5 +1,7 @@
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
+const gameShell = document.querySelector('.game-shell');
+const arenaWrap = document.querySelector('.arena-wrap');
 const startScreen = document.getElementById('startScreen');
 const gameOverScreen = document.getElementById('gameOver');
 const finalStats = document.getElementById('finalStats');
@@ -56,6 +58,24 @@ const tr=(pl,en)=>language==='pl'?pl:en;
 function setLanguage(next){language=next;document.documentElement.lang=next;document.querySelectorAll('[data-i18n]').forEach(el=>el.innerHTML=translations[next][el.dataset.i18n]);document.querySelectorAll('[data-lang]').forEach(b=>b.classList.toggle('active',b.dataset.lang===next));}
 
 const W = 1280, H = 720, WORLD_W = 3400, WORLD_H = 2400;
+function fitGameToScreen(){
+  const shellStyle=getComputedStyle(gameShell);
+  const horizontalPadding=parseFloat(shellStyle.paddingLeft)+parseFloat(shellStyle.paddingRight);
+  const verticalPadding=parseFloat(shellStyle.paddingTop)+parseFloat(shellStyle.paddingBottom);
+  const headerHeight=document.querySelector('header').offsetHeight;
+  const footerHeight=document.querySelector('footer').offsetHeight;
+  const arenaMargins=parseFloat(getComputedStyle(arenaWrap).marginTop)+parseFloat(getComputedStyle(arenaWrap).marginBottom);
+  const availableWidth=Math.max(1,gameShell.clientWidth-horizontalPadding);
+  const availableHeight=Math.max(1,gameShell.clientHeight-verticalPadding-headerHeight-footerHeight-arenaMargins);
+  const scale=Math.min(availableWidth/W,availableHeight/H);
+  arenaWrap.style.setProperty('--game-scale',scale);
+  arenaWrap.style.width=`${Math.floor(W*scale)}px`;
+  arenaWrap.style.height=`${Math.floor(H*scale)}px`;
+}
+addEventListener('resize',fitGameToScreen,{passive:true});
+addEventListener('orientationchange',fitGameToScreen,{passive:true});
+if(window.visualViewport)window.visualViewport.addEventListener('resize',fitGameToScreen,{passive:true});
+if(document.fonts)document.fonts.ready.then(fitGameToScreen);
 const keys = {}, mouse = { x: W/2, y:H/2, down:false };
 let player, bullets, enemies, particles, explosions, enemyBullets, pickups, obstacles, turrets, traps, lightningEffects, catLaserEffects, camera, score, credits, wave, kills, running, last, spawnTimer, eliteRespawn, bossTriggered, bossSpawnTimer, bossSpawnPoint, bossPurgeTimer, bossFightActive, shake, flash, notice, noticeTime, visualTime;
 let spaceDashQueued = false;
@@ -615,4 +635,4 @@ canvas.addEventListener('mousedown',()=>{
   }
   mouse.down=true;
 });addEventListener('mouseup',()=>mouse.down=false);
-setLanguage('pl');reset();running=false;requestAnimationFrame(loop);
+setLanguage('pl');fitGameToScreen();reset();running=false;requestAnimationFrame(loop);

@@ -5,19 +5,19 @@
 html, body { margin:0; min-height:100%; background:#05070a; color:#eef4e8; }
 body { font-family:'Barlow Condensed', Impact, sans-serif; overflow:hidden; }
 body::before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.2; background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px); background-size:36px 36px; }
-.game-shell { height:100vh; display:grid; grid-template-rows:auto 1fr auto; padding:18px 24px 12px; max-width:1500px; margin:auto; }
+.game-shell { height:100vh; height:100dvh; display:grid; grid-template-rows:auto minmax(0,1fr) auto; padding:18px 24px 12px; max-width:1500px; margin:auto; }
 header { display:flex; align-items:flex-end; justify-content:space-between; border-bottom:1px solid #293039; padding:0 4px 14px; }
 h1 { font-size:clamp(28px,3vw,46px); letter-spacing:-1px; margin:0; line-height:.85; font-weight:900; }
 .eyebrow { color:var(--lime); font:700 10px 'JetBrains Mono', monospace; letter-spacing:3px; margin:0 0 8px; }
 .controls { display:flex; gap:22px; color:#76808a; font:400 11px 'JetBrains Mono', monospace; }
 .controls b { color:#eef4e8; font-weight:700; margin-right:4px; }
 .controls i,button i { font-style:normal; }
-.arena-wrap { min-height:0; position:relative; margin:14px 0 10px; border:1px solid #303842; background:#090d12; box-shadow:0 0 50px rgba(0,0,0,.5); overflow:hidden; }
+.arena-wrap { min-width:0; min-height:0; position:relative; justify-self:center; align-self:center; margin:14px 0 10px; aspect-ratio:16/9; border:1px solid #303842; background:#090d12; box-shadow:0 0 50px rgba(0,0,0,.5); overflow:hidden; }
 .arena-wrap::before,.arena-wrap::after { content:""; position:absolute; z-index:5; pointer-events:none; width:32px; height:32px; border-color:var(--lime); }
 .arena-wrap::before { top:8px; left:8px; border-top:2px solid var(--lime); border-left:2px solid var(--lime); }
 .arena-wrap::after { right:8px; bottom:8px; border-right:2px solid var(--lime); border-bottom:2px solid var(--lime); }
 canvas { width:100%; height:100%; display:block; cursor:crosshair; }
-.overlay { position:absolute; inset:0; z-index:10; display:grid; place-items:center; background:radial-gradient(circle at center,rgba(12,18,22,.4),rgba(5,7,10,.93)); backdrop-filter:blur(3px); }
+.overlay { position:absolute; top:0; left:0; z-index:10; display:grid; place-items:center; width:1280px; height:720px; padding:12px 0; overflow:hidden; transform:scale(var(--game-scale,1)); transform-origin:top left; background:radial-gradient(circle at center,rgba(12,18,22,.4),rgba(5,7,10,.93)); backdrop-filter:blur(3px); }
 .overlay.hidden { display:none; }
 .panel { width:min(680px,92%); border-left:2px solid var(--lime); padding:20px 28px 24px; background:linear-gradient(90deg,rgba(15,20,25,.95),rgba(15,20,25,.55)); }
 .panel h2 { margin:0 0 15px; font-size:clamp(44px,6vw,78px); line-height:.82; letter-spacing:-2px; font-weight:900; }
@@ -82,4 +82,20 @@ footer { display:flex; justify-content:space-between; font:400 9px 'JetBrains Mo
 .pulse { color:#8f9b84; } .pulse i { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--lime); box-shadow:0 0 8px var(--lime); margin-right:6px; animation:pulse 1.5s infinite; }
 .pulse b { font-weight:400; }
 @keyframes pulse { 50% { opacity:.3; } }
-@media(max-width:700px){ .game-shell{padding:10px;} .controls{display:none;} header{padding-bottom:10px;} footer{display:none;} .arena-wrap{margin-bottom:0;} .roles{grid-template-columns:1fr;} .role small{min-height:0;} }
+@media(max-height:820px){
+  .game-shell{padding-top:10px;padding-bottom:8px}
+  header{padding-bottom:8px}
+  .arena-wrap{margin-top:8px;margin-bottom:6px}
+  .panel{padding:12px 20px 16px}
+  .panel h2{margin-bottom:9px;font-size:clamp(38px,8vh,62px)}
+  .panel>p:not(.eyebrow){margin:8px 0;font-size:11px;line-height:1.45}
+  .roles{gap:5px;margin-top:9px}
+  .role{padding:7px 9px}
+  .role strong{font-size:14px}
+  .role small{min-height:24px;font-size:8px}
+  button{margin-top:10px;padding:10px 15px}
+  .shop-offers{margin-top:10px;max-height:min(330px,52vh)}
+  .offer{padding:10px 14px}
+}
+@media(max-width:1100px){.controls{display:none}}
+@media(max-width:700px){ .game-shell{padding:8px;} .controls{display:none;} header{padding-bottom:8px;} footer{display:none;} .arena-wrap{margin-bottom:0;} .roles{grid-template-columns:repeat(2,minmax(0,1fr));} .role small{min-height:0;} .offer{grid-template-columns:auto 1fr;gap:10px}.offer button{grid-column:1/-1}.offer-icon{width:42px;height:42px;font-size:26px} }
