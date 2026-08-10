@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Neonowy Szturm</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="game-shell">
+    <header>
+      <div>
+        <p class="eyebrow" data-i18n="sector">ARENA // SEKTOR 07</p>
+        <h1>NEONOWY SZTURM</h1>
+      </div>
+      <div class="controls">
+        <span><b>WASD</b> <i data-i18n="move">ruch</i></span>
+        <span><b data-i18n="mouse">MYSZ</b> <i data-i18n="aim">cel</i></span>
+        <span><b data-i18n="lmb">LPM</b> <i data-i18n="shoot">strzał</i></span>
+        <span><b data-i18n="space">SPACJA</b> dash</span>
+        <span><b>Z</b> <i data-i18n="turret">wieżyczka</i></span>
+        <span><b>E</b> <i data-i18n="ability">zdolność</i></span>
+        <span><b>B</b> <i data-i18n="shop">sklep</i></span>
+      </div>
+    </header>
+
+    <section class="arena-wrap">
+      <canvas id="game" width="1280" height="720" aria-label="Gra Neonowy Szturm"></canvas>
+      <div id="pauseScreen" class="overlay pause-overlay hidden">
+        <div class="panel pause-panel">
+          <p class="eyebrow" data-i18n="pause_status">GRA WSTRZYMANA</p>
+          <h2 data-i18n="pause_title">MENU</h2>
+          <label class="volume-control" for="gameVolume">
+            <span data-i18n="game_volume">DŹWIĘKI GRY</span>
+            <output id="gameVolumeValue">100%</output>
+          </label>
+          <input id="gameVolume" type="range" min="0" max="100" value="100" aria-label="Głośność gry" />
+          <label class="volume-control" for="musicVolume">
+            <span data-i18n="music_volume">GŁOŚNOŚĆ MUZYKI</span>
+            <output id="musicVolumeValue">100%</output>
+          </label>
+          <input id="musicVolume" type="range" min="0" max="100" value="100" aria-label="Głośność muzyki" />
+          <div class="pause-actions">
+            <button id="resumeBtn"><i data-i18n="resume_game">WRÓĆ DO GRY</i> <span>[ESC]</span></button>
+            <button id="lobbyBtn" class="secondary-button"><i data-i18n="enter_lobby">WEJDŹ DO LOBBY</i> <span>←</span></button>
+          </div>
+        </div>
+      </div>
+      <div id="startScreen" class="overlay">
+        <div class="panel start-panel">
+          <div class="language-picker"><button data-lang="pl" class="active">PL</button><button data-lang="en">EN</button></div>
+          <div class="lobby-volume-settings">
+            <label for="lobbyGameVolume"><span data-i18n="game_volume">DŹWIĘKI GRY</span><output id="lobbyGameVolumeValue">100%</output></label>
+            <input id="lobbyGameVolume" type="range" min="0" max="100" value="100" aria-label="Głośność gry" />
+            <label for="lobbyMusicVolume"><span data-i18n="music_volume">GŁOŚNOŚĆ MUZYKI</span><output id="lobbyMusicVolumeValue">100%</output></label>
+            <input id="lobbyMusicVolume" type="range" min="0" max="100" value="100" aria-label="Głośność muzyki" />
+          </div>
+          <p class="eyebrow" data-i18n="transmission">TRANSMISJA PRZECHWYCONA</p>
+          <h2 data-i18n="hero">Przetrwaj.<br><em>Zniszcz ich.</em></h2>
+          <p data-i18n="intro">Wrogie jednostki namierzyły twoją pozycję. Pozostań w ruchu, unikaj pocisków i oczyść kolejne fale.</p>
+          <div class="roles" aria-label="Wybór roli">
+            <button class="role active" data-role="medic"><strong data-i18n="role_medic">TECHNIK</strong><small data-i18n="desc_medic">[E] Naprawia wieżyczkę co 10 s</small></button>
+            <button class="role" data-role="tank"><strong>TANK</strong><small data-i18n="desc_tank">+25 punktów zdrowia</small></button>
+            <button class="role" data-role="billionaire"><strong data-i18n="role_billionaire">MILIARDER</strong><small data-i18n="desc_billionaire">500 energii • zarobki ×2</small></button>
+            <button class="role" data-role="assassin"><strong data-i18n="role_assassin">ASSASYN</strong><small data-i18n="desc_assassin">75 HP • obrażenia ×2 • szybkość ×1,5</small></button>
+            <button class="role" data-role="ghost"><strong data-i18n="role_ghost">DUCH</strong><small data-i18n="desc_ghost">[E] Niewidzialność na 7 s</small></button>
+            <button class="role" data-role="manipulator"><strong>MANIPULATOR</strong><small data-i18n="desc_manipulator">3 pociski przejęcia • +1 co 10 s</small></button>
+            <button class="role" data-role="engineer"><strong data-i18n="role_engineer">INŻYNIER</strong><small data-i18n="desc_engineer">[E] Pułapka • maks. 10</small></button>
+            <button class="role" data-role="ninja"><strong>NINJA</strong><small data-i18n="desc_ninja">[E] Odbija pociski przez 13 s</small></button>
+            <button class="role" data-role="madman"><strong data-i18n="role_madman">SZALENIEC</strong><small data-i18n="desc_madman">Podwójny strzał • [E] wybuch</small></button>
+            <button class="role" data-role="electrician"><strong data-i18n="role_electrician">ELEKTRYK</strong><small data-i18n="desc_electrician">Trafienia przeskakują między pobliskimi wrogami</small></button>
+            <button class="role" data-role="catclaw"><strong data-i18n="role_catclaw">KOCI PAZUR</strong><small data-i18n="desc_catclaw">Ruch ×1,25 • Kliknij wroga • [E] Skok co 7 s</small></button>
+            <button class="role" data-role="assault"><strong data-i18n="role_assault">SZTURMOWIEC</strong><small data-i18n="desc_assault">85 HP • szybkostrzelność ×1,5 • [E] Zmiana broni</small></button>
+          </div>
+          <button id="startBtn"><i data-i18n="start">WEJDŹ NA ARENĘ</i> <span>→</span></button>
+        </div>
+      </div>
+      <div id="gameOver" class="overlay hidden">
+        <div class="panel gameover-panel">
+          <p class="eyebrow" data-i18n="signal_lost">SYGNAŁ UTRACONY</p>
+          <h2 data-i18n="game_over">KONIEC <em>GRY</em></h2>
+          <p id="finalStats"></p>
+          <div class="gameover-actions">
+            <button id="restartBtn"><i data-i18n="retry">SPRÓBUJ PONOWNIE</i> <span>↻</span></button>
+            <button id="mainMenuBtn" class="secondary-button"><i data-i18n="change_character">WYBIERZ POSTAĆ</i> <span>←</span></button>
+          </div>
+        </div>
+      </div>
+      <div id="shopScreen" class="overlay shop-overlay hidden">
+        <div class="panel shop-panel">
+          <p class="eyebrow" data-i18n="paused">CZAS WSTRZYMANY // MAGAZYN</p>
+          <div class="shop-heading"><h2 data-i18n="shop_title">SKLEP</h2><strong id="shopEnergy">0 ENERGII</strong></div>
+          <div class="shop-offers">
+            <article class="offer fire-trail-offer">
+              <span class="offer-icon">♨</span>
+              <div><h3 data-i18n="fire_trail_title">TOR OGNIA</h3><p data-i18n="fire_trail_desc">Gracz stale zostawia za sobą ogień zadający obrażenia przeciwnikom.</p></div>
+              <button id="fireTrailUpgrade"><strong>300</strong> ENERGII</button>
+            </article>
+            <article class="offer armor-offer">
+              <span class="offer-icon">⬡</span>
+              <div><h3 data-i18n="upgrade_title">WZMOCNIONY PANCERZ</h3><p data-i18n="upgrade_desc">Wszystkie wieżyczki otrzymują dwukrotnie więcej HP.</p></div>
+              <button id="turretHpUpgrade"><strong>500</strong> ENERGII</button>
+            </article>
+            <article class="offer regen-offer">
+              <span class="offer-icon">+</span>
+              <div><h3 data-i18n="regen_title">NANOREGENERACJA</h3><p data-i18n="regen_desc">Odnawia 1 punkt zdrowia na sekundę.</p></div>
+              <button id="regenUpgrade"><strong>750</strong> ENERGII</button>
+            </article>
+            <article class="offer damage-offer">
+              <span class="offer-icon">✦</span>
+              <div><h3 data-i18n="damage_title">PRZECIĄŻONA BROŃ</h3><p data-i18n="damage_desc">Postać zadaje dwukrotnie więcej obrażeń.</p></div>
+              <button id="damageUpgrade"><strong>1000</strong> ENERGII</button>
+            </article>
+            <article class="offer ultra-offer">
+              <span class="offer-icon">✺</span>
+              <div><h3 data-i18n="ultra_turret_title">ULTRA DZIAŁKO</h3><p data-i18n="ultra_turret_desc">Niezniszczalne • 5 pocisków na sekundę • pojawia się przy graczu.</p></div>
+              <button id="ultraTurretUpgrade"><strong>1500</strong> ENERGII</button>
+            </article>
+            <article class="offer rapid-fire-offer">
+              <span class="offer-icon">»</span>
+              <div><h3 data-i18n="rapid_fire_title">HIPERNAPĘD BRONI</h3><p data-i18n="rapid_fire_desc">Gracz i wszystkie wieżyczki strzelają szybciej, a ich pociski mają większą prędkość.</p></div>
+              <button id="rapidFireUpgrade"><strong>2000</strong> ENERGII</button>
+            </article>
+            <article class="offer player-hp-offer">
+              <span class="offer-icon">♥</span>
+              <div><h3 data-i18n="player_hp_title">WZMOCNIENIE ORGANIZMU</h3><p data-i18n="player_hp_desc">Zwiększa maksymalne zdrowie aktualnej klasy o 50 punktów.</p></div>
+              <button id="playerHpUpgrade"><strong>2500</strong> ENERGII</button>
+            </article>
+            <article class="offer dual-shot-offer">
+              <span class="offer-icon">↔</span>
+              <div><h3 data-i18n="dual_shot_title">DWUSTRONNY OSTRZAŁ</h3><p data-i18n="dual_shot_desc">Postać strzela jednocześnie do przodu i do tyłu.</p></div>
+              <button id="dualShotUpgrade"><strong>3000</strong> ENERGII</button>
+            </article>
+          </div>
+          <button id="closeShopBtn"><i data-i18n="return">WRÓĆ DO WALKI</i> <span>[B]</span></button>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <span data-i18n="protocol">PROTOKÓŁ: OSTATNI OCALAŁY</span>
+      <span class="pulse"><i></i> <b data-i18n="online">SYSTEM ONLINE</b></span>
+    </footer>
+  </main>
+  <script src="game.js"></script>
+</body>
+</html>
