@@ -35,6 +35,56 @@ const playerBulletSounds=Array.from({length:16},()=>{
 const gameOverSound=new Audio('Assets/Audio/Sounds/GameOverSound.wav');
 gameOverSound.preload='auto';
 gameOverSound.volume=masterVolume;
+const dashSound=new Audio('Assets/Audio/Sounds/Dash.mp3');
+dashSound.preload='auto';
+dashSound.volume=masterVolume;
+function playDashSound(){
+  dashSound.currentTime=0;
+  dashSound.play().catch(()=>{});
+}
+const catTeleportSound=new Audio('Assets/Audio/Sounds/KociPTP.mp3');
+catTeleportSound.preload='auto';
+catTeleportSound.volume=masterVolume;
+function playCatTeleportSound(){
+  catTeleportSound.currentTime=0;
+  catTeleportSound.play().catch(()=>{});
+}
+const setTrapSound=new Audio('Assets/Audio/Sounds/SetTrap.mp3');
+setTrapSound.preload='auto';
+setTrapSound.volume=masterVolume;
+function playSetTrapSound(){
+  setTrapSound.currentTime=0;
+  setTrapSound.play().catch(()=>{});
+}
+const shieldOnSound=new Audio('Assets/Audio/Sounds/ShieldOn.mp3');
+shieldOnSound.preload='auto';
+shieldOnSound.volume=masterVolume;
+function playShieldOnSound(){
+  shieldOnSound.currentTime=0;
+  shieldOnSound.play().catch(()=>{});
+}
+const shieldProtectedSounds=['ShieldProtected.mp3','ShieldProtected2.mp3','ShieldProtected3.mp3','ShieldProtected4.mp3','ShieldProtected5.mp3'].map(file=>{
+  const sound=new Audio(`Assets/Audio/Sounds/${file}`);
+  sound.preload='auto';
+  sound.volume=masterVolume;
+  return sound;
+});
+function playShieldProtectedSound(){
+  const sound=shieldProtectedSounds[Math.floor(Math.random()*shieldProtectedSounds.length)];
+  sound.currentTime=0;
+  sound.play().catch(()=>{});
+}
+const electricitySounds=[1,2].map(number=>{
+  const sound=new Audio(`Assets/Audio/Sounds/Electricy${number}.mp3`);
+  sound.preload='auto';
+  sound.volume=masterVolume;
+  return sound;
+});
+function playElectricitySound(){
+  const sound=electricitySounds[Math.floor(Math.random()*electricitySounds.length)];
+  sound.currentTime=0;
+  sound.play().catch(()=>{});
+}
 const menuClickSounds=Array.from({length:6},()=>{
   const sound=new Audio('Assets/Audio/Sounds/MenuClickSound.wav');
   sound.preload='auto';
@@ -179,16 +229,19 @@ function stopInGameMusic(){
   currentInGameMusic=-1;
 }
 inGameMusicTracks.forEach((track,index)=>track.addEventListener('ended',()=>{if(inGameMusicActive)playInGameMusic((index+1)%inGameMusicTracks.length)}));
-const enemyShotSounds=Array.from({length:32},()=>{
-  const sound=new Audio('Assets/Audio/Sounds/AllShootingEnemisieBullets.wav');
+const enemyShotSoundFiles=['AllShootingEnemisieBullets.wav','EnemyShot.mp3','EnemyShot2.mp3'];
+const enemyShotSounds=enemyShotSoundFiles.map(file=>Array.from({length:12},()=>{
+  const sound=new Audio(`Assets/Audio/Sounds/${file}`);
   sound.preload='auto';
   sound.volume=masterVolume*.7;
   return sound;
-});
-let nextEnemyShotSound=0;
+}));
+const nextEnemyShotSound=[0,0,0];
 function playEnemyShotSound(){
-  const sound=enemyShotSounds[nextEnemyShotSound];
-  nextEnemyShotSound=(nextEnemyShotSound+1)%enemyShotSounds.length;
+  const variant=Math.floor(Math.random()*enemyShotSounds.length);
+  const sounds=enemyShotSounds[variant];
+  const sound=sounds[nextEnemyShotSound[variant]];
+  nextEnemyShotSound[variant]=(nextEnemyShotSound[variant]+1)%sounds.length;
   sound.currentTime=0;
   sound.play().catch(()=>{});
 }
@@ -377,6 +430,7 @@ function useRoleAbility(){
     if(catTarget.boss){notice=tr('CZERWONY TYTAN JEST ODPORNY','RED TITAN IS IMMUNE');noticeTime=1.7;burst(catTarget.x,catTarget.y,'#ff193d',8);return}
     const origin={x:catTarget.x,y:catTarget.y},victim=catTarget;catTarget=null;
     player.x=origin.x;player.y=origin.y;player.inv=.45;player.catCooldown=7;victim.hp=0;rewardChainedDefeat(victim);
+    playCatTeleportSound();
     for(let i=0;i<8;i++){const angle=i*Math.PI/4;catLaserEffects.push({x:origin.x,y:origin.y,angle,life:.18,max:.18})}
     enemies.forEach(e=>{
       if(e===victim||e.hp<=0||e.friendly||e.boss)return;
@@ -398,7 +452,7 @@ function useRoleAbility(){
   if(chosenRole==='ninja'){
     if(player.reflect>0){notice=tr(`ODBICIE AKTYWNE — ${Math.ceil(player.reflect)} S`,`REFLECTION ACTIVE — ${Math.ceil(player.reflect)}S`);noticeTime=1.3;return}
     if(player.ninjaCooldown>0){notice=tr(`ODBICIE GOTOWE ZA ${Math.ceil(player.ninjaCooldown)} S`,`REFLECTION READY IN ${Math.ceil(player.ninjaCooldown)}S`);noticeTime=1.3;return}
-    player.reflect=13;player.ninjaCooldown=0;notice=tr('NINJA: ODBICIE AKTYWNE','NINJA: REFLECTION ACTIVE');noticeTime=1.5;burst(player.x,player.y,'#e8f7ff',24);return;
+    player.reflect=13;player.ninjaCooldown=0;playShieldOnSound();notice=tr('NINJA: ODBICIE AKTYWNE','NINJA: REFLECTION ACTIVE');noticeTime=1.5;burst(player.x,player.y,'#e8f7ff',24);return;
   }
   if(chosenRole==='engineer'){
     if(player.traps<=0){notice=tr(`BRAK PUŁAPEK — NOWA ZA ${Math.ceil(player.trapRecharge)} S`,`NO TRAPS — NEXT IN ${Math.ceil(player.trapRecharge)}S`);noticeTime=1.3;return}
@@ -406,7 +460,7 @@ function useRoleAbility(){
     if(pos.x<35||pos.x>WORLD_W-35||pos.y<35||pos.y>WORLD_H-35||blocked(pos,24)){notice=tr('NIE MOŻNA TU POSTAWIĆ PUŁAPKI','CANNOT PLACE A TRAP HERE');noticeTime=1.3;return}
     if(traps.some(t=>dist(t,pos)<48)){notice=tr('WYBIERZ MIEJSCE DALEJ OD INNEJ PUŁAPKI','PLACE IT FARTHER FROM ANOTHER TRAP');noticeTime=1.3;return}
     if(player.traps===10)player.trapRecharge=10;
-    player.traps--;traps.push({x:pos.x,y:pos.y,r:24,arm:.45,phase:0});burst(pos.x,pos.y,'#ffd84d',16);notice=tr('PUŁAPKA UZBROJONA','TRAP ARMED');noticeTime=1.2;return;
+    player.traps--;traps.push({x:pos.x,y:pos.y,r:24,arm:.45,phase:0});playSetTrapSound();burst(pos.x,pos.y,'#ffd84d',16);notice=tr('PUŁAPKA UZBROJONA','TRAP ARMED');noticeTime=1.2;return;
   }
   if(chosenRole==='manipulator'){
     if(player.manipulateReady){notice=tr('POCISK PRZEJĘCIA JUŻ GOTOWY','CONTROL PROJECTILE ALREADY READY');noticeTime=1.2;return}
@@ -460,11 +514,12 @@ function rewardChainedDefeat(e){
 }
 
 function chainLightning(firstTarget,damage){
-  const visited=new Set([firstTarget]);let current=firstTarget;
+  const visited=new Set([firstTarget]);let current=firstTarget,soundPlayed=false;
   while(true){
     let next=null,best=220;
     enemies.forEach(candidate=>{const d=dist(current,candidate);if(candidate.hp>0&&!candidate.friendly&&!visited.has(candidate)&&d<best){best=d;next=candidate}});
     if(!next)break;
+    if(!soundPlayed){playElectricitySound();soundPlayed=true}
     lightningEffects.push({x1:current.x,y1:current.y,x2:next.x,y2:next.y,life:.14,max:.14});
     visited.add(next);next.hp-=damage;next.hit=.1;score+=20;burst(next.x,next.y,'#79ddff',2);
     if(next.hp<=0)rewardChainedDefeat(next);
@@ -500,6 +555,7 @@ function update(dt){
   if(forwardDash){
     spaceDashQueued=false;
     player.dash=1.4; player.inv=.22;
+    playDashSound();
     for(let i=0;i<5;i++)moveBody(player,player.moveX*23,player.moveY*23,player.r,1);
     burst(player.x,player.y,'#c8ff3d',18);
   }
@@ -554,7 +610,7 @@ function update(dt){
     enemies.forEach(e=>{const d=dist(t,e);if(e.hp>0&&!e.friendly&&d<best&&hasLineOfSight(t,e)){best=d;target=e}});
     if(target){
       t.angle=Math.atan2(target.y-t.y,target.x-t.x);
-      if(t.fire<=0){const a=t.angle,baseDelay=t.ultra?.2:.38,baseSpeed=t.ultra?760:610;t.fire=rapidFirePurchased?baseDelay*.65:baseDelay;const projectileSpeed=rapidFirePurchased?baseSpeed*1.45:baseSpeed;bullets.push({x:t.x+Math.cos(a)*26,y:t.y+Math.sin(a)*26,vx:Math.cos(a)*projectileSpeed,vy:Math.sin(a)*projectileSpeed,life:1.2,turret:true,ultra:t.ultra});if(!t.ultra)playCommonTowerShotSound();burst(t.x+Math.cos(a)*25,t.y+Math.sin(a)*25,t.ultra?'#ffd84d':'#58ffd1',t.ultra?4:2)}
+      if(t.fire<=0){const a=t.angle,baseDelay=t.ultra?.2:.38,baseSpeed=t.ultra?760:610;t.fire=rapidFirePurchased?baseDelay*.65:baseDelay;const projectileSpeed=rapidFirePurchased?baseSpeed*1.45:baseSpeed;bullets.push({x:t.x+Math.cos(a)*26,y:t.y+Math.sin(a)*26,vx:Math.cos(a)*projectileSpeed,vy:Math.sin(a)*projectileSpeed,life:1.2,turret:true,ultra:t.ultra});playCommonTowerShotSound();burst(t.x+Math.cos(a)*25,t.y+Math.sin(a)*25,t.ultra?'#ffd84d':'#58ffd1',t.ultra?4:2)}
     }
   });
 
@@ -632,7 +688,7 @@ function update(dt){
     if(e.hp<=0){credits+=energyReward(e.boss?500:e.elite?150:e.tank?60:30)*(b.reflected?4:1);score+=e.boss?3000:e.elite?750:e.tank?300:100;kills++;shake=e.boss?28:e.elite?18:e.tank?12:6;if(e.elite)eliteRespawn=20;if(e.boss){playRedBossDeadSound();bossFightActive=false;bossPurgeTimer=0;spawnTimer=.25;eliteRespawn=1;notice=tr('TYTAN POKONANY — FALE WZNOWIONE','TITAN DEFEATED — WAVES RESUMED');noticeTime=3}burst(e.x,e.y,e.boss?'#ff193d':e.elite?'#b858ff':e.tank?'#ff9d3d':'#ff405d',e.boss?65:e.elite?38:e.tank?25:15);if(Math.random()<.1)pickups.push({x:e.x,y:e.y,r:10,life:8,phase:0})}
   }
   for(const b of enemyBullets){
-    if(b.life>0&&chosenRole==='ninja'&&player.reflect>0&&dist(b,player)<player.r+b.r+5){b.life=0;bullets.push({x:b.x,y:b.y,vx:-b.vx*1.2,vy:-b.vy*1.2,life:1.8,turret:true,reflected:true});burst(b.x,b.y,'#e8f7ff',10);shake=3}
+    if(b.life>0&&chosenRole==='ninja'&&player.reflect>0&&dist(b,player)<player.r+b.r+5){b.life=0;bullets.push({x:b.x,y:b.y,vx:-b.vx*1.2,vy:-b.vy*1.2,life:1.8,turret:true,reflected:true});playShieldProtectedSound();burst(b.x,b.y,'#e8f7ff',10);shake=3}
     if(b.life>0){
       const ally=enemies.find(e=>e.friendly&&e.hp>0&&dist(b,e)<e.r+b.r);
       if(ally){b.life=0;ally.hp--;ally.hit=.15;burst(ally.x,ally.y,'#43cfff',9);if(ally.hp<=0&&ally.elite)eliteRespawn=20}
@@ -837,6 +893,12 @@ function setGameVolume(value){
   gameVolumeValue.value=`${value}%`;lobbyGameVolumeValue.value=`${value}%`;
   playerBulletSounds.forEach(sound=>sound.volume=masterVolume);
   gameOverSound.volume=masterVolume;
+  dashSound.volume=masterVolume;
+  catTeleportSound.volume=masterVolume;
+  setTrapSound.volume=masterVolume;
+  shieldOnSound.volume=masterVolume;
+  shieldProtectedSounds.forEach(sound=>sound.volume=masterVolume);
+  electricitySounds.forEach(sound=>sound.volume=masterVolume);
   menuClickSounds.forEach(sound=>sound.volume=masterVolume);
   shopBuyingSound.volume=masterVolume;
   playerDamageSounds.forEach(sound=>sound.volume=masterVolume);
@@ -845,7 +907,7 @@ function setGameVolume(value){
   brokenCommonTowerSounds.forEach(sound=>sound.volume=masterVolume);
   redBossLaserSounds.forEach(sound=>sound.volume=masterVolume);
   redBossDeadSound.volume=masterVolume;
-  enemyShotSounds.forEach(sound=>sound.volume=masterVolume*.7);
+  enemyShotSounds.forEach(sounds=>sounds.forEach(sound=>sound.volume=masterVolume*.7));
 }
 function setMusicVolume(value){
   musicVolume=Number(value)/100;
