@@ -603,6 +603,8 @@ function moveEnemyToward(enemy,target,speed,dt){
 let networkMode='solo',peerConnection=null,controlChannel=null,stateChannel=null,networkConnected=false,remoteRole='medic';
 let remoteInput={dx:0,dy:0,angle:0,shoot:false,dash:false};
 let networkSendTimer=0,networkSnapshotTimer=0;
+let nextNetworkEntityId=1;
+let lastNetworkSnapshotAt=0;
 const encodeSignal=value=>btoa(JSON.stringify(value));
 const decodeSignal=value=>JSON.parse(atob(value.trim()));
 const waitForIce=pc=>pc.iceGatheringState==='complete'?Promise.resolve():new Promise(resolve=>{
@@ -689,22 +691,39 @@ function updateRemotePlayer(dt){
   const dx=remoteInput.dx||0,dy=remoteInput.dy||0,len=Math.hypot(dx,dy)||1;
   if(dx||dy){remotePlayer.moveX=dx/len;remotePlayer.moveY=dy/len}remotePlayer.angle=remoteInput.angle||0;
   if(remoteInput.dash&&remotePlayer.dash<=0){remotePlayer.dash=1.4;remotePlayer.inv=.22;for(let i=0;i<5;i++)moveBody(remotePlayer,remotePlayer.moveX*23,remotePlayer.moveY*23,remotePlayer.r,1)}
-  moveBody(remotePlayer,dx/len*remotePlayer.speed,dy/len*remotePlayer.speed,remotePlayer.r,dt);
+  remotePlayer.vx=dx/len*remotePlayer.speed;remotePlayer.vy=dy/len*remotePlayer.speed;
+  moveBody(remotePlayer,remotePlayer.vx,remotePlayer.vy,remotePlayer.r,dt);
   if(remoteInput.shoot&&remotePlayer.fire<=0){
     remotePlayer.fire=.115;const a=remotePlayer.angle+rand(-.025,.025);
     bullets.push({x:remotePlayer.x+Math.cos(a)*25,y:remotePlayer.y+Math.sin(a)*25,vx:Math.cos(a)*720,vy:Math.sin(a)*720,life:1.2,remote:true});
   }
   remoteInput.dash=false;
 }
-const networkEntity=entity=>{const copy={...entity};delete copy.path;delete copy.pathGoal;delete copy.hitTurrets;return copy};
-function networkState(){return {player,remotePlayer,bullets:bullets.map(networkEntity),enemies:enemies.map(networkEntity),particles:[],explosions:[],enemyBullets:enemyBullets.map(networkEntity),pickups,obstacles,turrets,traps,lightningEffects:[],catLaserEffects:[],alchemyFields,bossWaves:bossWaves.map(networkEntity),fireTrail,score,credits,wave,kills,shake,flash,notice,noticeTime,visualTime,bossSpawnTimer,bossSpawnPoint}}
+const networkEntity=entity=>{if(!entity.netId)entity.netId=nextNetworkEntityId++;const copy={...entity};delete copy.path;delete copy.pathGoal;delete copy.hitTurrets;return copy};
+function networkState(){return {sentAt:performance.now(),player,remotePlayer,bullets:bullets.map(networkEntity),enemies:enemies.map(networkEntity),particles:[],explosions:[],enemyBullets:enemyBullets.map(networkEntity),pickups,obstacles,turrets,traps,lightningEffects:[],catLaserEffects:[],alchemyFields,bossWaves:bossWaves.map(networkEntity),fireTrail,score,credits,wave,kills,shake,flash,notice,noticeTime,visualTime,bossSpawnTimer,bossSpawnPoint}}
+function reconcileNetworkEntities(current,next,blend=.45,snapshotDt=1/30){
+  const previous=new Map((current||[]).filter(item=>item.netId).map(item=>[item.netId,item]));
+  return (next||[]).map(item=>{
+    const old=previous.get(item.netId);if(!old||!Number.isFinite(item.x)||!Number.isFinite(item.y))return {...item,netServerX:item.x,netServerY:item.y,netVx:item.vx||0,netVy:item.vy||0};
+    const error=Math.hypot(item.x-old.x,item.y-old.y),factor=error>220?1:blend;
+    const serverX=old.netServerX??old.x,serverY=old.netServerY??old.y;
+    return {...item,x:old.x+(item.x-old.x)*factor,y:old.y+(item.y-old.y)*factor,netServerX:item.x,netServerY:item.y,netVx:(item.x-serverX)/snapshotDt,netVy:(item.y-serverY)/snapshotDt};
+  });
+}
+function updateNetworkVisuals(dt){
+  bullets.forEach(item=>{item.x+=item.vx*dt;item.y+=item.vy*dt});
+  enemyBullets.forEach(item=>{item.x+=item.vx*dt;item.y+=item.vy*dt});
+  enemies.forEach(item=>{item.x+=(item.netVx||0)*dt;item.y+=(item.netVy||0)*dt});
+  if(remotePlayer){remotePlayer.x+=(remotePlayer.vx||0)*dt;remotePlayer.y+=(remotePlayer.vy||0)*dt}
+}
 function applyNetworkState(state){
   if(!state)return;
+  const snapshotDt=lastNetworkSnapshotAt&&state.sentAt>lastNetworkSnapshotAt?Math.min(.2,(state.sentAt-lastNetworkSnapshotAt)/1000):1/30;lastNetworkSnapshotAt=state.sentAt||lastNetworkSnapshotAt;
   const authoritativePlayer=state.remotePlayer;
   if(authoritativePlayer&&player&&running){const error=Math.hypot(authoritativePlayer.x-player.x,authoritativePlayer.y-player.y),blend=error>180?1:.28;player={...authoritativePlayer,x:player.x+(authoritativePlayer.x-player.x)*blend,y:player.y+(authoritativePlayer.y-player.y)*blend}}
   else player=authoritativePlayer||player;
-  remotePlayer=state.player||remotePlayer;
-  bullets=state.bullets||[];enemies=state.enemies||[];particles=state.particles||[];explosions=state.explosions||[];enemyBullets=state.enemyBullets||[];pickups=state.pickups||[];obstacles=state.obstacles||[];turrets=state.turrets||[];traps=state.traps||[];lightningEffects=state.lightningEffects||[];catLaserEffects=state.catLaserEffects||[];alchemyFields=state.alchemyFields||[];bossWaves=state.bossWaves||[];fireTrail=state.fireTrail||[];
+  if(state.player){const old=remotePlayer,error=old?Math.hypot(state.player.x-old.x,state.player.y-old.y):Infinity,blend=error>220?1:.45;remotePlayer=old?{...state.player,x:old.x+(state.player.x-old.x)*blend,y:old.y+(state.player.y-old.y)*blend}:state.player}
+  bullets=reconcileNetworkEntities(bullets,state.bullets,.6,snapshotDt);enemies=reconcileNetworkEntities(enemies,state.enemies,.4,snapshotDt);particles=state.particles||[];explosions=state.explosions||[];enemyBullets=reconcileNetworkEntities(enemyBullets,state.enemyBullets,.6,snapshotDt);pickups=state.pickups||[];obstacles=state.obstacles||[];turrets=state.turrets||[];traps=state.traps||[];lightningEffects=state.lightningEffects||[];catLaserEffects=state.catLaserEffects||[];alchemyFields=state.alchemyFields||[];bossWaves=state.bossWaves||[];fireTrail=state.fireTrail||[];
   score=state.score;credits=state.credits;wave=state.wave;kills=state.kills;shake=state.shake;flash=state.flash;notice=state.notice;noticeTime=state.noticeTime;visualTime=state.visualTime;bossSpawnTimer=state.bossSpawnTimer;bossSpawnPoint=state.bossSpawnPoint;
   if(player)camera={x:clamp(player.x-W/2,0,WORLD_W-W),y:clamp(player.y-H/2,0,WORLD_H-H)};
 }
@@ -945,7 +964,7 @@ function chainLightning(firstTarget,damage){
 function update(dt){
   if(!running||shopOpen||pauseOpen)return;
   if(networkMode==='join'){
-    visualTime+=dt;networkSendTimer-=dt;
+    visualTime+=dt;networkSendTimer-=dt;updateNetworkVisuals(dt);
     const dx=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),dy=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0),dashRequested=spaceDashQueued;
     if(player){
       const len=Math.hypot(dx,dy)||1;if(dx||dy){player.moveX=dx/len;player.moveY=dy/len}player.angle=Math.atan2(mouse.y+camera.y-player.y,mouse.x+camera.x-player.x);
@@ -995,8 +1014,8 @@ function update(dt){
     for(let i=0;i<5;i++)moveBody(player,player.moveX*23,player.moveY*23,player.r,1);
     burst(player.x,player.y,'#c8ff3d',18);
   }
-  const speed=player.speed;
-  moveBody(player,dx/len*speed,dy/len*speed,player.r,dt);
+  const speed=player.speed;player.vx=dx/len*speed;player.vy=dy/len*speed;
+  moveBody(player,player.vx,player.vy,player.r,dt);
   camera.x=clamp(player.x-W/2,0,WORLD_W-W);camera.y=clamp(player.y-H/2,0,WORLD_H-H);
   bossWaves.forEach(w=>{
     w.radius+=w.speed*dt;w.life-=dt;
