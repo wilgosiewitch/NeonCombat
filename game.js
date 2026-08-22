@@ -347,6 +347,8 @@ const translations={
   pl:{sector:'ARENA // SEKTOR 07',move:'ruch',mouse:'MYSZ',aim:'cel',lmb:'LPM',shoot:'strzał',space:'SPACJA',turret:'wieżyczka',ability:'zdolność',shop:'sklep',transmission:'TRANSMISJA PRZECHWYCONA',hero:'Przetrwaj.<br><em>Zniszcz ich.</em>',intro:'Wrogie jednostki namierzyły twoją pozycję. Pozostań w ruchu, unikaj pocisków i oczyść kolejne fale.',role_medic:'TECHNIK',desc_medic:'[E] Naprawia wieżyczkę co 10 s',desc_tank:'+25 punktów zdrowia',role_billionaire:'MILIARDER',desc_billionaire:'500 energii • zarobki ×2',role_assassin:'ASSASYN',desc_assassin:'75 HP • obrażenia ×2 • szybkość ×1,5',role_ghost:'DUCH',desc_ghost:'[E] Niewidzialność na 7 s',desc_manipulator:'3 pociski przejęcia • +1 co 10 s',role_engineer:'INŻYNIER',desc_engineer:'[E] Pułapka • maks. 10',desc_ninja:'[E] Odbija pociski przez 13 s',role_madman:'SZALENIEC',desc_madman:'Podwójny strzał • [E] wybuch',start:'WEJDŹ NA ARENĘ',signal_lost:'SYGNAŁ UTRACONY',game_over:'KONIEC <em>GRY</em>',retry:'SPRÓBUJ PONOWNIE',paused:'CZAS WSTRZYMANY // MAGAZYN',shop_title:'SKLEP',upgrade_title:'WZMOCNIONY PANCERZ',upgrade_desc:'Wszystkie wieżyczki otrzymują dwukrotnie więcej HP.',damage_title:'PRZECIĄŻONA BROŃ',damage_desc:'Postać zadaje dwukrotnie więcej obrażeń.',regen_title:'NANOREGENERACJA',regen_desc:'Odnawia 1 punkt zdrowia na sekundę.',return:'WRÓĆ DO WALKI',protocol:'PROTOKÓŁ: OSTATNI OCALAŁY',online:'SYSTEM ONLINE'},
   en:{sector:'ARENA // SECTOR 07',move:'move',mouse:'MOUSE',aim:'aim',lmb:'LMB',shoot:'shoot',space:'SPACE',turret:'turret',ability:'ability',shop:'shop',transmission:'TRANSMISSION INTERCEPTED',hero:'Survive.<br><em>Destroy them.</em>',intro:'Enemy units have located your position. Keep moving, dodge incoming fire, and clear each wave.',role_medic:'TECHNICIAN',desc_medic:'[E] Repairs a turret every 10s',desc_tank:'+25 maximum health',role_billionaire:'BILLIONAIRE',desc_billionaire:'500 energy • earnings ×2',role_assassin:'ASSASSIN',desc_assassin:'75 HP • damage ×2 • speed ×1.5',role_ghost:'GHOST',desc_ghost:'[E] Invisible for 7s',desc_manipulator:'3 control shots • +1 every 10s',role_engineer:'ENGINEER',desc_engineer:'[E] Trap • maximum 10',desc_ninja:'[E] Reflects projectiles for 13s',role_madman:'MADMAN',desc_madman:'Double shot • [E] explosion',start:'ENTER THE ARENA',signal_lost:'SIGNAL LOST',game_over:'GAME <em>OVER</em>',retry:'TRY AGAIN',paused:'TIME PAUSED // ARMORY',shop_title:'SHOP',upgrade_title:'REINFORCED ARMOR',upgrade_desc:'All turrets receive twice as much HP.',damage_title:'OVERCHARGED WEAPON',damage_desc:'The character deals twice as much damage.',regen_title:'NANOREGENERATION',regen_desc:'Restores 1 health point per second.',return:'RETURN TO BATTLE',protocol:'PROTOCOL: LAST SURVIVOR',online:'SYSTEM ONLINE'}
 };
+translations.pl.paused='MAGAZYN // ULEPSZENIA';
+translations.en.paused='ARMORY // UPGRADES';
 translations.pl.change_character='WYBIERZ POSTAĆ';
 translations.en.change_character='CHOOSE CHARACTER';
 translations.pl.ultra_turret_title='ULTRA DZIAŁKO';
@@ -1143,7 +1145,7 @@ function chainLightning(firstTarget,damage){
 }
 
 function update(dt){
-  if(!running||shopOpen||pauseOpen)return;
+  if(!running||pauseOpen||(shopOpen&&networkMode!=='host'))return;
   if(networkMode==='join'){
     visualTime+=dt;networkSendTimer-=dt;updateNetworkVisuals(dt);
     const dx=clamp((keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0)+virtualMove.x,-1,1),dy=clamp((keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0)+virtualMove.y,-1,1),dashRequested=spaceDashQueued;
@@ -1201,6 +1203,7 @@ function update(dt){
   bossWaves.forEach(w=>{
     w.radius+=w.speed*dt;w.life-=dt;
     if(!w.hitPlayer&&player.inv<=0&&Math.abs(dist(player,w)-w.radius)<w.width/2+player.r){w.hitPlayer=true;player.hp-=35;playPlayerDamageSound();player.inv=.65;flash=.2;shake=20;burst(player.x,player.y,'#b858ff',22);if(player.hp<=0)endGame()}
+    if(!w.hitRemotePlayer&&remotePlayer&&remotePlayer.hp>0&&remotePlayer.inv<=0&&Math.abs(dist(remotePlayer,w)-w.radius)<w.width/2+remotePlayer.r){w.hitRemotePlayer=true;remotePlayer.hp-=35;playPlayerDamageSound();remotePlayer.inv=.65;flash=.2;shake=20;burst(remotePlayer.x,remotePlayer.y,'#b858ff',22);if(remotePlayer.hp<=0)endGame()}
     turrets.forEach(t=>{
       if(t.ultra||t.hp<=0||w.hitTurrets.has(t)||Math.abs(dist(t,w)-w.radius)>=w.width/2+t.r)return;
       w.hitTurrets.add(t);t.hp--;t.hit=.18;shake=6;burst(t.x,t.y,'#b858ff',12);
@@ -1290,20 +1293,22 @@ function update(dt){
       return;
     }
     if(e.waveBoss){
-      const playerDistance=dist(e,player);e.waveCooldown-=dt;e.closeBeam-=dt;e.closeCooldown-=dt;e.angle+=dt*.35;
-      if(e.waveCooldown<=0){e.waveCooldown=e.hp<=e.maxHp*.5?2.4:3.2;bossWaves.push({x:e.x,y:e.y,radius:e.r+10,speed:e.hp<=e.maxHp*.5?620:520,width:34,maxRadius:Math.hypot(WORLD_W,WORLD_H),life:7,hitPlayer:false,hitTurrets:new Set()});playElectricitySound();shake=10}
-      if(playerDistance<165&&e.closeCooldown<=0&&player.inv<=0){e.closeAngle=Math.atan2(player.y-e.y,player.x-e.x);e.closeBeam=.22;e.closeCooldown=2.4;player.hp-=65;playPlayerDamageSound();player.inv=.7;flash=.26;shake=26;burst(player.x,player.y,'#ffffff',30);if(player.hp<=0)endGame()}
+      const closeTargets=[player,remotePlayer].filter(target=>target&&target.hp>0&&target.inv<=0).sort((a,b)=>dist(e,a)-dist(e,b));e.waveCooldown-=dt;e.closeBeam-=dt;e.closeCooldown-=dt;e.angle+=dt*.35;
+      if(e.waveCooldown<=0){e.waveCooldown=e.hp<=e.maxHp*.5?2.4:3.2;bossWaves.push({x:e.x,y:e.y,radius:e.r+10,speed:e.hp<=e.maxHp*.5?620:520,width:34,maxRadius:Math.hypot(WORLD_W,WORLD_H),life:7,hitPlayer:false,hitRemotePlayer:false,hitTurrets:new Set()});playElectricitySound();shake=10}
+      const closeTarget=closeTargets[0];
+      if(closeTarget&&dist(e,closeTarget)<165&&e.closeCooldown<=0){e.closeAngle=Math.atan2(closeTarget.y-e.y,closeTarget.x-e.x);e.closeBeam=.22;e.closeCooldown=2.4;closeTarget.hp-=65;playPlayerDamageSound();closeTarget.inv=.7;flash=.26;shake=26;burst(closeTarget.x,closeTarget.y,'#ffffff',30);if(closeTarget.hp<=0)endGame()}
       return;
     }
     if(e.boss){
-      const playerDistance=dist(e,player);
+      const bossTargets=[player,remotePlayer].filter(target=>target&&target.hp>0),nearestTarget=bossTargets.slice().sort((a,b)=>dist(e,a)-dist(e,b))[0]||player,playerDistance=dist(e,nearestTarget);
       const baseLaserSpeed=playerDistance<550?.62:playerDistance<1000?.36:.18;
       const laserSpeed=e.hp<=e.maxHp*.5?baseLaserSpeed*1.4:baseLaserSpeed;
       e.laserAngle+=dt*laserSpeed;e.angle=e.laserAngle;e.laserSound-=dt;e.closeBeam-=dt;e.closeCooldown-=dt;
       if(e.laserSound<=0){e.laserSound=1;playRedBossLaserSound()}
-      if(player.inv<=0){
-        for(let i=0;i<3;i++){const a=e.laserAngle+i*Math.PI*2/3,end={x:e.x+Math.cos(a)*4200,y:e.y+Math.sin(a)*4200};if(pointSegmentDist(player,e,end)<13){player.hp-=25;playPlayerDamageSound();player.inv=.65;flash=.16;shake=16;burst(player.x,player.y,'#ff193d',20);if(player.hp<=0)endGame();break}}
-      }
+      bossTargets.forEach(target=>{
+        if(target.inv>0)return;
+        for(let i=0;i<3;i++){const a=e.laserAngle+i*Math.PI*2/3,end={x:e.x+Math.cos(a)*4200,y:e.y+Math.sin(a)*4200};if(pointSegmentDist(target,e,end)<13){target.hp-=25;playPlayerDamageSound();target.inv=.65;flash=.16;shake=16;burst(target.x,target.y,'#ff193d',20);if(target.hp<=0)endGame();break}}
+      });
       turrets.forEach(t=>{
         if(t.ultra||t.hp<=0||t.laserInv>0)return;
         for(let i=0;i<3;i++){
@@ -1314,7 +1319,8 @@ function update(dt){
           break;
         }
       });
-      if(playerDistance<145&&e.closeCooldown<=0&&player.inv<=0){e.closeAngle=Math.atan2(player.y-e.y,player.x-e.x);e.closeBeam=.18;e.closeCooldown=2.4;player.hp-=50;playPlayerDamageSound();player.inv=.7;flash=.24;shake=24;burst(player.x,player.y,'#ffffff',28);if(player.hp<=0)endGame()}
+      const closeTarget=bossTargets.filter(target=>target.inv<=0).sort((a,b)=>dist(e,a)-dist(e,b))[0];
+      if(closeTarget&&dist(e,closeTarget)<145&&e.closeCooldown<=0){e.closeAngle=Math.atan2(closeTarget.y-e.y,closeTarget.x-e.x);e.closeBeam=.18;e.closeCooldown=2.4;closeTarget.hp-=50;playPlayerDamageSound();closeTarget.inv=.7;flash=.24;shake=24;burst(closeTarget.x,closeTarget.y,'#ffffff',28);if(closeTarget.hp<=0)endGame()}
       return;
     }
     if(e.yellow){
@@ -1537,10 +1543,19 @@ function buyPlayerHp(){
 function drawLegacyPlayerModel(entity,color,barrelColor){
   ctx.save();ctx.translate(entity.x,entity.y);ctx.rotate(entity.angle);ctx.globalAlpha=entity.invisible>0?.2:entity.inv>0&&Math.floor(entity.inv*20)%2?.3:1;ctx.shadowBlur=18;ctx.shadowColor=color;ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(24,0);ctx.lineTo(-15,14);ctx.lineTo(-9,0);ctx.lineTo(-15,-14);ctx.closePath();ctx.fill();ctx.shadowBlur=0;ctx.fillStyle=barrelColor;ctx.fillRect(1,-4,27,8);ctx.restore();
 }
+const tintedPlayerModels=new WeakMap();
+function tintedPlayerModel(modelImage,tintColor){
+  let variants=tintedPlayerModels.get(modelImage);
+  if(!variants){variants=new Map();tintedPlayerModels.set(modelImage,variants)}
+  if(variants.has(tintColor))return variants.get(tintColor);
+  const tinted=document.createElement('canvas');tinted.width=modelImage.naturalWidth;tinted.height=modelImage.naturalHeight;
+  const tintCtx=tinted.getContext('2d');tintCtx.drawImage(modelImage,0,0);tintCtx.globalCompositeOperation='source-atop';tintCtx.globalAlpha=.78;tintCtx.fillStyle=tintColor;tintCtx.fillRect(0,0,tinted.width,tinted.height);
+  variants.set(tintColor,tinted);return tinted;
+}
 function drawBasicPlayerModel(entity,glowColor,tintColor=null,modelImage=basicPlayerImage){
   if(!modelImage.complete||!modelImage.naturalWidth){drawLegacyPlayerModel(entity,glowColor,glowColor==='#58ffd1'?'#071216':'#07100b');return}
-  ctx.save();ctx.translate(entity.x,entity.y);ctx.rotate(entity.angle+Math.PI/2);ctx.globalAlpha=entity.invisible>0?.2:entity.inv>0&&Math.floor(entity.inv*20)%2?.3:1;ctx.shadowBlur=14;ctx.shadowColor=glowColor;ctx.filter='saturate(1.55) contrast(1.06)';ctx.drawImage(modelImage,-29,-29,58,58);
-  if(tintColor){ctx.filter='none';ctx.shadowBlur=0;ctx.globalCompositeOperation='source-atop';ctx.globalAlpha*=.78;ctx.fillStyle=tintColor;ctx.fillRect(-29,-29,58,58)}
+  const renderedModel=tintColor?tintedPlayerModel(modelImage,tintColor):modelImage;
+  ctx.save();ctx.translate(entity.x,entity.y);ctx.rotate(entity.angle+Math.PI/2);ctx.globalAlpha=entity.invisible>0?.2:entity.inv>0&&Math.floor(entity.inv*20)%2?.3:1;ctx.shadowBlur=14;ctx.shadowColor=glowColor;ctx.filter='saturate(1.55) contrast(1.06)';ctx.drawImage(renderedModel,-29,-29,58,58);
   ctx.restore();
 }
 function draw(){
@@ -1597,7 +1612,18 @@ function draw(){
 
   if(player)drawBasicPlayerModel(player,'#c8ff3d',null,chosenRole==='madman'?(dualShotPurchased?dualShotMadmanPlayerImage:madmanPlayerImage):(dualShotPurchased?dualShotPlayerImage:basicPlayerImage));
   if(remotePlayer)drawBasicPlayerModel(remotePlayer,'#58ffd1','#58ffd1',remotePlayer.role==='madman'?(remotePlayer.dualShotPurchased?dualShotMadmanPlayerImage:madmanPlayerImage):(remotePlayer.dualShotPurchased?dualShotPlayerImage:basicPlayerImage));
-  if(networkMode!=='solo')[player&&{entity:player,color:'#c8ff3d'},remotePlayer&&{entity:remotePlayer,color:'#58ffd1'}].filter(Boolean).forEach(({entity,color})=>{if(!entity.name)return;ctx.save();ctx.textAlign='center';ctx.font="800 13px 'JetBrains Mono'";ctx.lineWidth=4;ctx.strokeStyle='rgba(5,7,10,.9)';ctx.strokeText(entity.name,entity.x,entity.y-31);ctx.fillStyle=color;ctx.fillText(entity.name,entity.x,entity.y-31);ctx.restore()});
+  if(networkMode!=='solo')[player&&{entity:player,color:'#c8ff3d',remote:false},remotePlayer&&{entity:remotePlayer,color:'#58ffd1',remote:true}].filter(Boolean).forEach(({entity,color,remote})=>{
+    if(!entity.name)return;
+    ctx.save();ctx.textAlign='center';ctx.font="800 13px 'JetBrains Mono'";ctx.lineWidth=4;ctx.strokeStyle='rgba(5,7,10,.9)';ctx.strokeText(entity.name,entity.x,entity.y-31);ctx.fillStyle=color;ctx.fillText(entity.name,entity.x,entity.y-31);
+    if(remote){
+      const width=62,height=7,health=Math.max(0,Math.min(1,entity.hp/Math.max(1,entity.maxHp)));
+      ctx.fillStyle='rgba(5,7,10,.9)';ctx.fillRect(entity.x-width/2-2,entity.y-51,width+4,height+4);
+      ctx.fillStyle='#263038';ctx.fillRect(entity.x-width/2,entity.y-49,width,height);
+      ctx.fillStyle=health>.3?'#58ffd1':'#ff405d';ctx.fillRect(entity.x-width/2,entity.y-49,width*health,height);
+      ctx.strokeStyle='rgba(238,244,232,.45)';ctx.lineWidth=1;ctx.strokeRect(entity.x-width/2,entity.y-49,width,height);
+    }
+    ctx.restore();
+  });
   if(player&&player.reflect>0){ctx.save();ctx.translate(player.x,player.y);ctx.rotate(visualTime*2.85);ctx.strokeStyle='rgba(232,247,255,.9)';ctx.lineWidth=3;ctx.shadowBlur=18;ctx.shadowColor='#9ee7ff';ctx.setLineDash([10,7]);ctx.beginPath();ctx.arc(0,0,31,0,Math.PI*2);ctx.stroke();ctx.restore()}
   ctx.restore();
   if(!player)return;
