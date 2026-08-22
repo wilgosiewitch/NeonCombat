@@ -59,6 +59,7 @@ const dashSound=new Audio('Assets/Audio/Sounds/Dash.mp3');
 dashSound.preload='auto';
 dashSound.volume=masterVolume;
 function playDashSound(){
+  broadcastSound('dash');
   dashSound.currentTime=0;
   dashSound.play().catch(()=>{});
 }
@@ -66,6 +67,7 @@ const catTeleportSound=new Audio('Assets/Audio/Sounds/KociPTP.mp3');
 catTeleportSound.preload='auto';
 catTeleportSound.volume=masterVolume;
 function playCatTeleportSound(){
+  broadcastSound('catTeleport');
   catTeleportSound.currentTime=0;
   catTeleportSound.play().catch(()=>{});
 }
@@ -73,6 +75,7 @@ const setTrapSound=new Audio('Assets/Audio/Sounds/SetTrap.mp3');
 setTrapSound.preload='auto';
 setTrapSound.volume=masterVolume;
 function playSetTrapSound(){
+  broadcastSound('setTrap');
   setTrapSound.currentTime=0;
   setTrapSound.play().catch(()=>{});
 }
@@ -80,6 +83,7 @@ const shieldOnSound=new Audio('Assets/Audio/Sounds/ShieldOn.mp3');
 shieldOnSound.preload='auto';
 shieldOnSound.volume=masterVolume;
 function playShieldOnSound(){
+  broadcastSound('shieldOn');
   shieldOnSound.currentTime=0;
   shieldOnSound.play().catch(()=>{});
 }
@@ -90,6 +94,7 @@ const shieldProtectedSounds=['ShieldProtected.mp3','ShieldProtected2.mp3','Shiel
   return sound;
 });
 function playShieldProtectedSound(){
+  broadcastSound('shieldProtected');
   const sound=shieldProtectedSounds[Math.floor(Math.random()*shieldProtectedSounds.length)];
   sound.currentTime=0;
   sound.play().catch(()=>{});
@@ -102,6 +107,7 @@ const electricitySounds=[1,2].map(number=>{
 });
 let nextElectricitySound=0;
 function playElectricitySound(){
+  broadcastSound('electricity');
   const sound=electricitySounds[nextElectricitySound];
   nextElectricitySound=(nextElectricitySound+1)%electricitySounds.length;
   sound.currentTime=0;
@@ -124,6 +130,7 @@ const shopBuyingSound=new Audio('Assets/Audio/Sounds/BuyingInRoundShopSound.wav'
 shopBuyingSound.preload='auto';
 shopBuyingSound.volume=masterVolume;
 function playShopBuyingSound(){
+  broadcastSound('shopBuying');
   shopBuyingSound.currentTime=0;
   shopBuyingSound.play().catch(()=>{});
 }
@@ -135,6 +142,7 @@ const playerDamageSounds=[1,2,3].map(number=>{
 });
 let lastPlayerDamageSound=-1;
 function playPlayerDamageSound(){
+  broadcastSound('playerDamage');
   let index=Math.floor(Math.random()*playerDamageSounds.length);
   if(index===lastPlayerDamageSound)index=(index+1+Math.floor(Math.random()*2))%playerDamageSounds.length;
   lastPlayerDamageSound=index;
@@ -150,6 +158,7 @@ const towerBuildingSounds=Array.from({length:4},()=>{
 });
 let nextTowerBuildingSound=0;
 function playTowerBuildingSound(){
+  broadcastSound('towerBuilding');
   const {first,second}=towerBuildingSounds[nextTowerBuildingSound];
   nextTowerBuildingSound=(nextTowerBuildingSound+1)%towerBuildingSounds.length;
   first.pause();second.pause();first.currentTime=0;second.currentTime=0;
@@ -164,6 +173,7 @@ const commonTowerShotSounds=Array.from({length:24},()=>{
 });
 let nextCommonTowerShotSound=0;
 function playCommonTowerShotSound(){
+  broadcastSound('towerShot');
   const sound=commonTowerShotSounds[nextCommonTowerShotSound];
   nextCommonTowerShotSound=(nextCommonTowerShotSound+1)%commonTowerShotSounds.length;
   sound.currentTime=0;
@@ -177,6 +187,7 @@ const brokenCommonTowerSounds=Array.from({length:4},()=>{
 });
 let nextBrokenCommonTowerSound=0;
 function playBrokenCommonTowerSound(){
+  broadcastSound('towerBroken');
   const sound=brokenCommonTowerSounds[nextBrokenCommonTowerSound];
   nextBrokenCommonTowerSound=(nextBrokenCommonTowerSound+1)%brokenCommonTowerSounds.length;
   sound.currentTime=0;
@@ -190,6 +201,7 @@ const redBossLaserSounds=Array.from({length:3},()=>{
 });
 let nextRedBossLaserSound=0;
 function playRedBossLaserSound(){
+  broadcastSound('bossLaser');
   const sound=redBossLaserSounds[nextRedBossLaserSound];
   nextRedBossLaserSound=(nextRedBossLaserSound+1)%redBossLaserSounds.length;
   sound.currentTime=0;
@@ -199,6 +211,7 @@ const redBossDeadSound=new Audio('Assets/Audio/Sounds/RedBossDeadSound.wav');
 redBossDeadSound.preload='auto';
 redBossDeadSound.volume=masterVolume;
 function playRedBossDeadSound(){
+  broadcastSound('bossDead');
   redBossDeadSound.currentTime=0;
   redBossDeadSound.play().catch(()=>{});
 }
@@ -260,6 +273,7 @@ const enemyShotSounds=enemyShotSoundFiles.map(file=>Array.from({length:12},()=>{
 }));
 const nextEnemyShotSound=[0,0,0];
 function playEnemyShotSound(){
+  broadcastSound('enemyShot');
   const variant=Math.floor(Math.random()*enemyShotSounds.length);
   const sounds=enemyShotSounds[variant];
   const sound=sounds[nextEnemyShotSound[variant]];
@@ -269,6 +283,7 @@ function playEnemyShotSound(){
 }
 let nextPlayerBulletSound=0;
 function playPlayerBulletSound(){
+  broadcastSound('playerShot');
   const sound=playerBulletSounds[nextPlayerBulletSound];
   nextPlayerBulletSound=(nextPlayerBulletSound+1)%playerBulletSounds.length;
   sound.currentTime=0;
@@ -648,9 +663,11 @@ function attachDataChannel(channel){
     let message;try{message=JSON.parse(event.data)}catch{return}
     if(networkMode==='host'&&message.type==='input')remoteInput=message.input;
     if(networkMode==='host'&&message.type==='role'&&message.role){remoteRole=message.role;createRemotePlayer(remoteRole)}
+    if(networkMode==='host'&&message.type==='action')handleRemoteAction(message);
+    if(networkMode==='join'&&message.type==='sound')playNetworkSound(message.sound);
     if(networkMode==='join'&&message.type==='start'){chosenRole=message.guestRole||chosenRole;running=true;startScreen.classList.add('hidden');gameOverScreen.classList.add('hidden');stopLobbyMusic();inGameMusicActive=true;playInGameMusic()}
     if(networkMode==='join'&&message.type==='state')applyNetworkState(message.state);
-    if(networkMode==='join'&&message.type==='end'){running=false;gameOverScreen.classList.remove('hidden');finalStats.textContent=message.stats||'KONIEC GRY'}
+    if(networkMode==='join'&&message.type==='end'){running=false;stopInGameMusic();gameOverSound.currentTime=0;gameOverSound.play().catch(()=>{});gameOverScreen.classList.remove('hidden');finalStats.textContent=message.stats||'KONIEC GRY'}
   };
 }
 async function hostNetworkAction(){
@@ -678,9 +695,19 @@ async function joinNetworkAction(){
   }catch(error){setNetworkStatus(`Błąd: ${error.message}`,true)}
 }
 function sendNetwork(message){
-  const channel=message.type==='state'||message.type==='input'?stateChannel:controlChannel;
+  const channel=message.type==='state'||message.type==='input'||message.type==='sound'?stateChannel:controlChannel;
   if(!channel||channel.readyState!=='open'||channel.bufferedAmount>262144)return;
   channel.send(JSON.stringify(message));
+}
+function broadcastSound(sound){if(networkMode==='host'&&networkConnected)sendNetwork({type:'sound',sound})}
+function playNetworkSound(sound){
+  const players={dash:playDashSound,catTeleport:playCatTeleportSound,setTrap:playSetTrapSound,shieldOn:playShieldOnSound,shieldProtected:playShieldProtectedSound,electricity:playElectricitySound,shopBuying:playShopBuyingSound,playerDamage:playPlayerDamageSound,towerBuilding:playTowerBuildingSound,towerShot:playCommonTowerShotSound,towerBroken:playBrokenCommonTowerSound,bossLaser:playRedBossLaserSound,bossDead:playRedBossDeadSound,enemyShot:playEnemyShotSound,playerShot:playPlayerBulletSound};
+  if(players[sound])players[sound]();
+}
+function handleRemoteAction(message){
+  if(!running||networkMode!=='host'||!remotePlayer)return;
+  if(message.action==='placeTurret')placeTurret({x:message.x,y:message.y});
+  if(message.action==='upgradeTurret'){const turret=turrets.find(item=>item.netId===message.turretId);if(turret)upgradeSelectedTurret(turret)}
 }
 function createRemotePlayer(role='medic'){
   const maxHp=role==='tank'?125:role==='assassin'||role==='necromancer'?75:role==='assault'?85:role==='alchemist'?80:role==='sapper'?105:100;
@@ -690,17 +717,18 @@ function updateRemotePlayer(dt){
   if(!remotePlayer)return;remotePlayer.fire-=dt;remotePlayer.dash-=dt;remotePlayer.inv-=dt;
   const dx=remoteInput.dx||0,dy=remoteInput.dy||0,len=Math.hypot(dx,dy)||1;
   if(dx||dy){remotePlayer.moveX=dx/len;remotePlayer.moveY=dy/len}remotePlayer.angle=remoteInput.angle||0;
-  if(remoteInput.dash&&remotePlayer.dash<=0){remotePlayer.dash=1.4;remotePlayer.inv=.22;for(let i=0;i<5;i++)moveBody(remotePlayer,remotePlayer.moveX*23,remotePlayer.moveY*23,remotePlayer.r,1)}
+  if(remoteInput.dash&&remotePlayer.dash<=0){remotePlayer.dash=1.4;remotePlayer.inv=.22;playDashSound();for(let i=0;i<5;i++)moveBody(remotePlayer,remotePlayer.moveX*23,remotePlayer.moveY*23,remotePlayer.r,1)}
   remotePlayer.vx=dx/len*remotePlayer.speed;remotePlayer.vy=dy/len*remotePlayer.speed;
   moveBody(remotePlayer,remotePlayer.vx,remotePlayer.vy,remotePlayer.r,dt);
   if(remoteInput.shoot&&remotePlayer.fire<=0){
     remotePlayer.fire=.115;const a=remotePlayer.angle+rand(-.025,.025);
     bullets.push({x:remotePlayer.x+Math.cos(a)*25,y:remotePlayer.y+Math.sin(a)*25,vx:Math.cos(a)*720,vy:Math.sin(a)*720,life:1.2,remote:true});
+    playPlayerBulletSound();
   }
   remoteInput.dash=false;
 }
 const networkEntity=entity=>{if(!entity.netId)entity.netId=nextNetworkEntityId++;const copy={...entity};delete copy.path;delete copy.pathGoal;delete copy.hitTurrets;return copy};
-function networkState(){return {sentAt:performance.now(),player,remotePlayer,bullets:bullets.map(networkEntity),enemies:enemies.map(networkEntity),particles:[],explosions:[],enemyBullets:enemyBullets.map(networkEntity),pickups,obstacles,turrets,traps,lightningEffects:[],catLaserEffects:[],alchemyFields,bossWaves:bossWaves.map(networkEntity),fireTrail,score,credits,wave,kills,shake,flash,notice,noticeTime,visualTime,bossSpawnTimer,bossSpawnPoint}}
+function networkState(){return {sentAt:performance.now(),player,remotePlayer,bullets:bullets.map(networkEntity),enemies:enemies.map(networkEntity),particles:[],explosions:[],enemyBullets:enemyBullets.map(networkEntity),pickups,obstacles,turrets:turrets.map(networkEntity),traps,lightningEffects:[],catLaserEffects:[],alchemyFields,bossWaves:bossWaves.map(networkEntity),fireTrail,score,credits,wave,kills,shake,flash,notice,noticeTime,visualTime,bossSpawnTimer,bossSpawnPoint}}
 function reconcileNetworkEntities(current,next,blend=.45,snapshotDt=1/30){
   const previous=new Map((current||[]).filter(item=>item.netId).map(item=>[item.netId,item]));
   return (next||[]).map(item=>{
@@ -724,6 +752,7 @@ function applyNetworkState(state){
   else player=authoritativePlayer||player;
   if(state.player){const old=remotePlayer,error=old?Math.hypot(state.player.x-old.x,state.player.y-old.y):Infinity,blend=error>220?1:.45;remotePlayer=old?{...state.player,x:old.x+(state.player.x-old.x)*blend,y:old.y+(state.player.y-old.y)*blend}:state.player}
   bullets=reconcileNetworkEntities(bullets,state.bullets,.6,snapshotDt);enemies=reconcileNetworkEntities(enemies,state.enemies,.4,snapshotDt);particles=state.particles||[];explosions=state.explosions||[];enemyBullets=reconcileNetworkEntities(enemyBullets,state.enemyBullets,.6,snapshotDt);pickups=state.pickups||[];obstacles=state.obstacles||[];turrets=state.turrets||[];traps=state.traps||[];lightningEffects=state.lightningEffects||[];catLaserEffects=state.catLaserEffects||[];alchemyFields=state.alchemyFields||[];bossWaves=state.bossWaves||[];fireTrail=state.fireTrail||[];
+  if(selectedTurret?.netId)selectedTurret=turrets.find(item=>item.netId===selectedTurret.netId)||null;
   score=state.score;credits=state.credits;wave=state.wave;kills=state.kills;shake=state.shake;flash=state.flash;notice=state.notice;noticeTime=state.noticeTime;visualTime=state.visualTime;bossSpawnTimer=state.bossSpawnTimer;bossSpawnPoint=state.bossSpawnPoint;
   if(player)camera={x:clamp(player.x-W/2,0,WORLD_W-W),y:clamp(player.y-H/2,0,WORLD_H-H)};
 }
@@ -880,9 +909,10 @@ function useRoleAbility(){
   target.hp=target.maxHp;player.heal=10;burst(target.x,target.y,'#58ffd1',25);notice=tr('WIEŻYCZKA NAPRAWIONA','TURRET REPAIRED');noticeTime=1.3;
 }
 
-function placeTurret(){
+function placeTurret(position=null){
   turretQueued=false;
-  const x=mouse.x+camera.x,y=mouse.y+camera.y,pos={x,y};
+  const x=position?.x??mouse.x+camera.x,y=position?.y??mouse.y+camera.y,pos={x,y};
+  if(!Number.isFinite(x)||!Number.isFinite(y))return;
   if(turrets.some(t=>t.hp>0&&dist(t,pos)<65)){notice=tr('NIE MOŻNA STAWIAĆ WIEŻYCZEK NA SOBIE','TURRETS CANNOT BE PLACED ON EACH OTHER');noticeTime=1.8;return}
   if(turrets.filter(t=>t.hp>0&&!t.ultra).length>=11){notice=tr('LIMIT 11 WIEŻYCZEK OSIĄGNIĘTY','11 TURRET LIMIT REACHED');noticeTime=1.5;return}
   if(credits<TURRET_COST){notice=tr(`ZA MAŁO ENERGII — POTRZEBA ${TURRET_COST}`,`NOT ENOUGH ENERGY — NEED ${TURRET_COST}`);noticeTime=1.5;return}
@@ -896,8 +926,8 @@ function placeTurret(){
   if(turrets.filter(t=>t.hp>0&&!t.ultra).length>10&&!bossTriggered)beginBossArrival();
 }
 
-function upgradeSelectedTurret(){
-  const t=selectedTurret;
+function upgradeSelectedTurret(target=selectedTurret){
+  const t=target;
   if(!running||shopOpen||pauseOpen||!t||t.ultra||t.hp<=0||!turrets.includes(t))return;
   t.level=t.level||1;
   if(t.level>=5){notice=tr('WIEŻYCZKA MA MAKSYMALNY POZIOM','TURRET IS AT MAXIMUM LEVEL');noticeTime=1.5;return}
@@ -1143,7 +1173,7 @@ function update(dt){
       const a=Math.atan2(target.y-e.y,target.x-e.x);e.angle=a;
       if(targetDist<=e.r+target.r){
         e.hp=0;burst(e.x,e.y,'#ffd84d',12);
-        if(target===player||target===remotePlayer){const damage=10*enemyDamageMultiplier();target.hp-=damage;target.inv=Math.max(target.inv,.15);flash=.12;shake=10;burst(target.x,target.y,'#ffd84d',14);if(target.hp<=0)endGame()}
+        if(target===player||target===remotePlayer){const damage=10*enemyDamageMultiplier();target.hp-=damage;playPlayerDamageSound();target.inv=Math.max(target.inv,.15);flash=.12;shake=10;burst(target.x,target.y,'#ffd84d',14);if(target.hp<=0)endGame()}
         else if(!target.ultra){const damage=10*enemyDamageMultiplier();target.hp-=damage;target.hit=.18;shake=6;burst(target.x,target.y,'#ffd84d',12);if(target.hp<=0){playBrokenCommonTowerSound();burst(target.x,target.y,'#58ffd1',28);notice=tr('WIEŻYCZKA ZNISZCZONA','TURRET DESTROYED');noticeTime=1.4}}
       }else moveEnemyToward(e,target,e.speed,dt);
       return;
@@ -1212,7 +1242,7 @@ function update(dt){
       if(turret){b.life=0;turret.hit=.18;shake=6;burst(turret.x,turret.y,turret.ultra?'#ffd84d':'#ff9d3d',12);if(!turret.ultra){turret.hp--;if(turret.hp<=0){playBrokenCommonTowerSound();burst(turret.x,turret.y,'#58ffd1',28);notice=tr('WIEŻYCZKA ZNISZCZONA','TURRET DESTROYED');noticeTime=1.4}}}
     }
     if(b.life>0&&player.inv<=0&&!(chosenRole==='ghost'&&player.invisible>0)&&dist(b,player)<player.r+b.r){b.life=0;player.hp-=b.damage;playPlayerDamageSound();player.inv=.45;player.speed=chosenRole==='assassin'?390:chosenRole==='catclaw'?325:260;shake=b.damage===36?5:12;flash=b.damage===36?.06:.12;burst(player.x,player.y,'#ff405d',b.damage===36?10:18);if(player.hp<=0)endGame()}
-    if(b.life>0&&remotePlayer&&remotePlayer.hp>0&&remotePlayer.inv<=0&&dist(b,remotePlayer)<remotePlayer.r+b.r){b.life=0;remotePlayer.hp-=b.damage;remotePlayer.inv=.45;shake=b.damage===36?5:12;flash=b.damage===36?.06:.12;burst(remotePlayer.x,remotePlayer.y,'#58ffd1',b.damage===36?10:18);if(remotePlayer.hp<=0)endGame()}
+    if(b.life>0&&remotePlayer&&remotePlayer.hp>0&&remotePlayer.inv<=0&&dist(b,remotePlayer)<remotePlayer.r+b.r){b.life=0;remotePlayer.hp-=b.damage;playPlayerDamageSound();remotePlayer.inv=.45;shake=b.damage===36?5:12;flash=b.damage===36?.06:.12;burst(remotePlayer.x,remotePlayer.y,'#58ffd1',b.damage===36?10:18);if(remotePlayer.hp<=0)endGame()}
   }
   pickups.forEach(p=>{if(p.life>0&&dist(p,player)<player.r+p.r){p.life=0;player.hp=Math.min(player.maxHp,player.hp+25);addScore(50);burst(p.x,p.y,'#58ffd1',16)}});
   bullets.forEach(b=>{if(blocked(b,3))b.life=0});enemyBullets.forEach(b=>{if(blocked(b,b.r))b.life=0});
@@ -1491,7 +1521,7 @@ document.addEventListener('click',e=>{
   if(button.closest('.offer,.buff-offer'))playShopBuyingSound();
   else playMenuClickSound();
 });
-addEventListener('keydown',e=>{if(e.target.matches('input, textarea, select')||e.target.isContentEditable)return;if(e.key==='Escape'&&!e.repeat){togglePause();e.preventDefault();return}if(pauseOpen)return;if(e.key.toLowerCase()==='b'&&!e.repeat){toggleShop();return}if(shopOpen)return;keys[e.key.toLowerCase()]=true;if(e.key===' '&&!e.repeat)spaceDashQueued=true;if(e.key.toLowerCase()==='z'&&!e.repeat)turretQueued=true;if(e.key.toLowerCase()==='x'&&!e.repeat)upgradeSelectedTurret();if(e.key.toLowerCase()==='e'&&!e.repeat)healQueued=true;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault()});
+addEventListener('keydown',e=>{if(e.target.matches('input, textarea, select')||e.target.isContentEditable)return;if(e.key==='Escape'&&!e.repeat){togglePause();e.preventDefault();return}if(pauseOpen)return;if(e.key.toLowerCase()==='b'&&!e.repeat){toggleShop();return}if(shopOpen)return;keys[e.key.toLowerCase()]=true;if(e.key===' '&&!e.repeat)spaceDashQueued=true;if(e.key.toLowerCase()==='z'&&!e.repeat){if(networkMode==='join')sendNetwork({type:'action',action:'placeTurret',x:mouse.x+camera.x,y:mouse.y+camera.y});else turretQueued=true}if(e.key.toLowerCase()==='x'&&!e.repeat){if(networkMode==='join'&&selectedTurret)sendNetwork({type:'action',action:'upgradeTurret',turretId:selectedTurret.netId});else upgradeSelectedTurret()}if(e.key.toLowerCase()==='e'&&!e.repeat)healQueued=true;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault()});
 addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
 addEventListener('blur',()=>{Object.keys(keys).forEach(k=>keys[k]=false);mouse.down=false;spaceDashQueued=false});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){Object.keys(keys).forEach(k=>keys[k]=false);mouse.down=false;spaceDashQueued=false}});
