@@ -580,6 +580,9 @@ let catTarget = null;
 let turretEscapeTimer = 0;
 const TURRET_COST = 180;
 const TURRET_UPGRADE_COST = 400;
+const REVIVE_DISTANCE = 72;
+const REVIVE_DURATION = 5;
+const REVIVE_HP = 30;
 
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -775,7 +778,14 @@ function attachDataChannel(channel){
     if(networkMode==='host'&&message.type==='role'&&message.role){remoteRole=message.role;remoteNickname=cleanNickname(message.name)||'Player 2';createRemotePlayer(remoteRole,remoteNickname)}
     if(networkMode==='host'&&message.type==='action')handleRemoteAction(message);
     if(networkMode==='join'&&message.type==='sound')playNetworkSound(message.sound);
-    if(networkMode==='join'&&message.type==='upgradeResult'&&shopOpen)toggleShop(true);
+    if(networkMode==='join'&&message.type==='upgradeResult'){
+      if(message.playerUpgrades&&player){
+        Object.assign(player,message.playerUpgrades);
+        applyLocalPlayerUpgrades(player);
+      }
+      if(Number.isFinite(message.credits))credits=message.credits;
+      if(shopOpen)toggleShop(true);
+    }
     if(networkMode==='join'&&message.type==='start'){chosenRole=message.guestRole||chosenRole;remoteNickname=cleanNickname(message.hostName)||'Host';gemMultiplier=(Number.isFinite(message.gemMultiplierBase)?message.gemMultiplierBase:1)*(doubleGemsPending?2:1);if(doubleGemsPending){doubleGemsPending=false;try{localStorage.removeItem(DOUBLE_GEMS_STORAGE_KEY);localStorage.removeItem('neonStormDoubleScorePending')}catch{}updateDoubleGemsBuff()}running=true;startScreen.classList.add('hidden');gameOverScreen.classList.add('hidden');stopLobbyMusic();inGameMusicActive=true;playInGameMusic()}
     if(networkMode==='join'&&message.type==='state')applyNetworkState(message.state);
     if(networkMode==='join'&&message.type==='end'&&running){running=false;const result=message.result?{...message.result,earnedGems:awardGems(message.result.kills*gemMultiplier)}:null;stopInGameMusic();gameOverSound.currentTime=0;gameOverSound.play().catch(()=>{});gameOverScreen.classList.remove('hidden');finalStats.textContent=result?formatFinalStats(result):message.stats||tr('KONIEC GRY','GAME OVER')}
@@ -826,13 +836,20 @@ function playNetworkSound(sound){
 }
 function handleRemoteAction(message){
   if(!running||networkMode!=='host'||!remotePlayer)return;
-  if(message.action==='placeTurret')placeTurret(message.atPlayer?{x:remotePlayer.x,y:remotePlayer.y}:{x:message.x,y:message.y});
-  if(message.action==='upgradeTurret'){const turret=turrets.find(item=>item.netId===message.turretId);if(turret)upgradeSelectedTurret(turret)}
+  if(remotePlayer.hp<=0&&message.action!=='buyUpgrade'&&message.action!=='stopInput')return;
+  if(message.action==='placeTurret')placeTurret(message.atPlayer?{x:remotePlayer.x,y:remotePlayer.y}:{x:message.x,y:message.y},remotePlayer);
+  if(message.action==='upgradeTurret'){const turret=turrets.find(item=>item.netId===message.turretId);if(turret)upgradeSelectedTurret(turret,remotePlayer)}
   if(message.action==='buyUpgrade')buyRemoteUpgrade(message.upgrade);
   if(message.action==='ability')useRemoteRoleAbility(message);
   if(message.action==='stopInput')remoteInput={dx:0,dy:0,angle:remoteInput.angle||0,shoot:false,dash:false};
 }
 function requestRemoteUpgrade(upgrade){sendNetwork({type:'action',action:'buyUpgrade',upgrade})}
+function playerUpgradeState(p){
+  return {damageUpgradeLevel:p.damageUpgradeLevel||0,damageMultiplier:p.damageMultiplier||1,healthRegen:Boolean(p.healthRegen),rapidFirePurchased:Boolean(p.rapidFirePurchased),dualShotPurchased:Boolean(p.dualShotPurchased),playerHpUpgradeLevel:p.playerHpUpgradeLevel||0,fireTrailUpgradeLevel:p.fireTrailUpgradeLevel||0};
+}
+function applyLocalPlayerUpgrades(p){
+  damageUpgradeLevel=p.damageUpgradeLevel||0;playerDamageMultiplier=p.damageMultiplier||1;healthRegen=Boolean(p.healthRegen);rapidFirePurchased=Boolean(p.rapidFirePurchased);dualShotPurchased=Boolean(p.dualShotPurchased);playerHpUpgradeLevel=p.playerHpUpgradeLevel||0;fireTrailUpgradeLevel=p.fireTrailUpgradeLevel||0;
+}
 function requestRemoteAbility(){
   const usePlayerPosition=document.body.classList.contains('mobile-mode')&&chosenRole==='engineer';
   sendNetwork({type:'action',action:'ability',targetId:catTarget?.netId||selectedTurret?.netId||null,x:usePlayerPosition?player?.x:mouse.x+camera.x,y:usePlayerPosition?player?.y:mouse.y+camera.y});
@@ -849,7 +866,7 @@ function buyRemoteUpgrade(upgrade){
   else if(upgrade==='turretRegen'){if(turretRegenPurchased||credits<3000)return;credits-=3000;turretRegenPurchased=true}
   else if(upgrade==='ultra'){if(ultraTurretPurchased||credits<1500||turrets.some(t=>t.hp>0&&dist(t,p)<65))return;credits-=1500;ultraTurretPurchased=true;turrets.push({x:p.x,y:p.y,r:25,hp:1,maxHp:1,hit:0,angle:p.angle,fire:0,range:650,ultra:true});playTowerBuildingSound();burst(p.x,p.y,'#ffd84d',36)}
   else return;
-  registerShopUpgradePurchase();playShopBuyingSound();notice=tr('ULEPSZENIE GRACZA 2 KUPIONE','PLAYER 2 UPGRADE PURCHASED');noticeTime=1.5;sendNetwork({type:'upgradeResult'});
+  registerShopUpgradePurchase();playShopBuyingSound();notice=tr('ULEPSZENIE GRACZA 2 KUPIONE','PLAYER 2 UPGRADE PURCHASED');noticeTime=1.5;sendNetwork({type:'upgradeResult',playerUpgrades:playerUpgradeState(p),credits});
 }
 function createRemotePlayer(role='medic',name=remoteNickname){
   const maxHp=role==='tank'?125:role==='assassin'||role==='necromancer'?75:role==='assault'?85:role==='alchemist'?80:role==='sapper'?105:100;
@@ -883,6 +900,7 @@ function useRemoteRoleAbility(message={}){
 }
 function updateRemotePlayer(dt){
   if(!remotePlayer)return;remotePlayer.fire-=dt;remotePlayer.dash-=dt;remotePlayer.inv-=dt;remotePlayer.heal-=dt;remotePlayer.invisible-=dt;remotePlayer.ghostCooldown-=dt;remotePlayer.madmanCooldown-=dt;remotePlayer.catCooldown-=dt;remotePlayer.assaultSwitch-=dt;remotePlayer.shotgunCooldown-=dt;
+  if(remotePlayer.hp<=0){remotePlayer.vx=0;remotePlayer.vy=0;remoteInput.dash=false;return}
   const reflectionWasActive=remotePlayer.reflect>0;remotePlayer.reflect-=dt;if(reflectionWasActive&&remotePlayer.reflect<=0){remotePlayer.reflect=0;remotePlayer.ninjaCooldown=10}else if(!reflectionWasActive)remotePlayer.ninjaCooldown-=dt;
   if(remotePlayer.role==='engineer'&&remotePlayer.traps<10){remotePlayer.trapRecharge-=dt;if(remotePlayer.trapRecharge<=0){remotePlayer.traps++;remotePlayer.trapRecharge=10}}
   if(remotePlayer.role==='manipulator'&&remotePlayer.manipulateCharges<3){remotePlayer.manipulateCooldown-=dt;if(remotePlayer.manipulateCooldown<=0){remotePlayer.manipulateCharges++;remotePlayer.manipulateCooldown=10}}
@@ -908,6 +926,19 @@ function updateRemotePlayer(dt){
   }
   remoteInput.dash=false;
 }
+function updateRevives(dt){
+  if(networkMode==='solo'||!player||!remotePlayer)return;
+  const updateRevive=(rescuer,target,holding)=>{
+    if(target.hp>0){target.reviveProgress=0;return}
+    const canRevive=rescuer.hp>0&&dist(rescuer,target)<=REVIVE_DISTANCE;
+    target.reviveProgress=canRevive&&holding?(target.reviveProgress||0)+dt:0;
+    if(target.reviveProgress<REVIVE_DURATION)return;
+    target.hp=Math.min(REVIVE_HP,target.maxHp);target.inv=1;target.reviveProgress=0;
+    burst(target.x,target.y,'#58ffd1',32);playShieldOnSound();notice=tr(`${target.name||'GRACZ'} WRACA DO WALKI — ${target.hp} HP`,`${target.name||'PLAYER'} REVIVED — ${target.hp} HP`);noticeTime=2;
+  };
+  updateRevive(player,remotePlayer,Boolean(keys.f));
+  updateRevive(remotePlayer,player,Boolean(remoteInput.revive));
+}
 const networkEntity=entity=>{if(!entity.netId)entity.netId=nextNetworkEntityId++;const copy={...entity};delete copy.path;delete copy.pathGoal;delete copy.hitTurrets;return copy};
 function networkEnemy(enemy){
   if(!enemy.netId)enemy.netId=nextNetworkEntityId++;
@@ -919,7 +950,7 @@ function networkProjectile(projectile){
   const {netId,x,y,vx,vy,life,r=4,turret=false,ultra=false,ally=false,undead=false,oneShot=false,special=false,reflected=false,remote=false}=projectile;
   return {netId,x,y,vx,vy,life,r,turret,ultra,ally,undead,oneShot,special,reflected,remote};
 }
-function networkState(){return {sentAt:performance.now(),player:{...player,dualShotPurchased},remotePlayer,bullets:bullets.map(networkProjectile),enemies:enemies.map(networkEnemy),particles:[],explosions:[],enemyBullets:enemyBullets.map(networkProjectile),pickups,obstacles,turrets:turrets.map(networkEntity),traps,lightningEffects:[],catLaserEffects:[],alchemyFields,bossWaves:bossWaves.map(networkEntity),fireTrail:fireTrail.slice(-100),score,credits,wave,kills,shake,flash,notice,noticeTime,visualTime,bossSpawnTimer,bossSpawnPoint,teamUpgrades:{turretHpMultiplier,turretRegenPurchased,ultraTurretPurchased}}}
+function networkState(){return {sentAt:performance.now(),player:{...player,...playerUpgradeState({damageUpgradeLevel,damageMultiplier:playerDamageMultiplier,healthRegen,rapidFirePurchased,dualShotPurchased,playerHpUpgradeLevel,fireTrailUpgradeLevel})},remotePlayer,bullets:bullets.map(networkProjectile),enemies:enemies.map(networkEnemy),particles:[],explosions:[],enemyBullets:enemyBullets.map(networkProjectile),pickups,obstacles,turrets:turrets.map(networkEntity),traps,lightningEffects:[],catLaserEffects:[],alchemyFields,bossWaves:bossWaves.map(networkEntity),fireTrail:fireTrail.slice(-100),score,credits,wave,kills,shake,flash,notice,noticeTime,visualTime,bossSpawnTimer,bossSpawnPoint,teamUpgrades:{turretHpMultiplier,turretRegenPurchased,ultraTurretPurchased}}}
 function reconcileNetworkEntities(current,next,blend=.45,snapshotDt=1/30){
   const previous=new Map((current||[]).filter(item=>item.netId).map(item=>[item.netId,item]));
   return (next||[]).map(item=>{
@@ -941,7 +972,7 @@ function applyNetworkState(state){
   const authoritativePlayer=state.remotePlayer;
   if(authoritativePlayer&&player&&running){const error=Math.hypot(authoritativePlayer.x-player.x,authoritativePlayer.y-player.y),blend=error>180?1:.28;player={...authoritativePlayer,x:player.x+(authoritativePlayer.x-player.x)*blend,y:player.y+(authoritativePlayer.y-player.y)*blend}}
   else player=authoritativePlayer||player;
-  if(player&&networkMode==='join'){damageUpgradeLevel=player.damageUpgradeLevel||0;playerDamageMultiplier=player.damageMultiplier||1;healthRegen=Boolean(player.healthRegen);rapidFirePurchased=Boolean(player.rapidFirePurchased);dualShotPurchased=Boolean(player.dualShotPurchased);playerHpUpgradeLevel=player.playerHpUpgradeLevel||0;fireTrailUpgradeLevel=player.fireTrailUpgradeLevel||0}
+  if(player&&networkMode==='join')applyLocalPlayerUpgrades(player);
   if(state.teamUpgrades&&networkMode==='join'){turretHpMultiplier=state.teamUpgrades.turretHpMultiplier;turretRegenPurchased=state.teamUpgrades.turretRegenPurchased;ultraTurretPurchased=state.teamUpgrades.ultraTurretPurchased}
   if(state.player){const old=remotePlayer,error=old?Math.hypot(state.player.x-old.x,state.player.y-old.y):Infinity,blend=error>220?1:.45;remotePlayer=old?{...state.player,x:old.x+(state.player.x-old.x)*blend,y:old.y+(state.player.y-old.y)*blend}:state.player}
   bullets=reconcileNetworkEntities(bullets,state.bullets,.6,snapshotDt);enemies=reconcileNetworkEntities(enemies,state.enemies,.4,snapshotDt);particles=state.particles||[];explosions=state.explosions||[];enemyBullets=reconcileNetworkEntities(enemyBullets,state.enemyBullets,.6,snapshotDt);pickups=state.pickups||[];obstacles=state.obstacles||[];turrets=state.turrets||[];traps=state.traps||[];lightningEffects=state.lightningEffects||[];catLaserEffects=state.catLaserEffects||[];alchemyFields=state.alchemyFields||[];bossWaves=state.bossWaves||[];fireTrail=state.fireTrail||[];
@@ -1042,6 +1073,7 @@ function spawnYellowGroup(){
 
 function useRoleAbility(){
   healQueued=false;
+  if(!player||player.hp<=0)return;
   if(chosenRole==='assault'){
     if(player.assaultSwitch>0){notice=tr(`ZMIANA MOŻLIWA ZA ${player.assaultSwitch.toFixed(1)} S`,`SWITCH READY IN ${player.assaultSwitch.toFixed(1)}S`);noticeTime=1;return}
     player.assaultWeapon=player.assaultWeapon==='default'?'shotgun':'default';player.assaultSwitch=.5;
@@ -1103,8 +1135,9 @@ function useRoleAbility(){
   target.hp=target.maxHp;player.heal=10;burst(target.x,target.y,'#58ffd1',25);notice=tr('WIEŻYCZKA NAPRAWIONA','TURRET REPAIRED');noticeTime=1.3;
 }
 
-function placeTurret(position=null){
+function placeTurret(position=null,actor=player){
   turretQueued=false;
+  if(!actor||actor.hp<=0)return;
   const x=position?.x??mouse.x+camera.x,y=position?.y??mouse.y+camera.y,pos={x,y};
   if(!Number.isFinite(x)||!Number.isFinite(y))return;
   if(turrets.some(t=>t.hp>0&&dist(t,pos)<65)){notice=tr('NIE MOŻNA STAWIAĆ WIEŻYCZEK NA SOBIE','TURRETS CANNOT BE PLACED ON EACH OTHER');noticeTime=1.8;return}
@@ -1120,9 +1153,9 @@ function placeTurret(position=null){
   if(turrets.filter(t=>t.hp>0&&!t.ultra).length>10&&!bossTriggered)beginBossArrival();
 }
 
-function upgradeSelectedTurret(target=selectedTurret){
+function upgradeSelectedTurret(target=selectedTurret,actor=player){
   const t=target;
-  if(!running||shopOpen||pauseOpen||!t||t.ultra||t.hp<=0||!turrets.includes(t))return;
+  if(!running||!actor||actor.hp<=0||shopOpen||pauseOpen||!t||t.ultra||t.hp<=0||!turrets.includes(t))return;
   t.level=t.level||1;
   if(t.level>=5){notice=tr('WIEŻYCZKA MA MAKSYMALNY POZIOM','TURRET IS AT MAXIMUM LEVEL');noticeTime=1.5;return}
   if(credits<TURRET_UPGRADE_COST){notice=tr(`ZA MAŁO ENERGII — POTRZEBA ${TURRET_UPGRADE_COST}`,`NOT ENOUGH ENERGY — NEED ${TURRET_UPGRADE_COST}`);noticeTime=1.5;return}
@@ -1190,18 +1223,18 @@ function update(dt){
   if(!running||pauseOpen||(shopOpen&&networkMode!=='host'))return;
   if(networkMode==='join'){
     visualTime+=dt;networkSendTimer-=dt;updateNetworkVisuals(dt);
-    const dx=clamp((keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0)+virtualMove.x,-1,1),dy=clamp((keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0)+virtualMove.y,-1,1),dashRequested=spaceDashQueued;
+    const alive=Boolean(player&&player.hp>0),dx=alive?clamp((keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0)+virtualMove.x,-1,1):0,dy=alive?clamp((keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0)+virtualMove.y,-1,1):0,dashRequested=alive&&spaceDashQueued;
     if(player){
       const len=Math.hypot(dx,dy)||1;if(dx||dy){player.moveX=dx/len;player.moveY=dy/len}player.angle=Math.atan2(mouse.y+camera.y-player.y,mouse.x+camera.x-player.x);
       player.dash=(player.dash||0)-dt;if(dashRequested&&player.dash<=0){player.dash=1.4;for(let i=0;i<5;i++)moveBody(player,player.moveX*23,player.moveY*23,player.r,1)}
       moveBody(player,dx/len*player.speed,dy/len*player.speed,player.r,dt);
     }
-    if(networkSendTimer<=0){networkSendTimer=1/40;sendNetwork({type:'input',input:{dx,dy,angle:player?player.angle:0,shoot:mouse.down,dash:dashRequested}});spaceDashQueued=false}
+    if(networkSendTimer<=0){networkSendTimer=1/40;sendNetwork({type:'input',input:{dx,dy,angle:player?player.angle:0,shoot:player?.hp>0&&mouse.down,dash:player?.hp>0&&dashRequested,revive:Boolean(keys.f)}});spaceDashQueued=false}
     if(player){camera.x=clamp(player.x-W/2,0,WORLD_W-W);camera.y=clamp(player.y-H/2,0,WORLD_H-H)}
     return;
   }
   visualTime+=dt;
-  if(networkMode==='host'&&networkConnected){updateRemotePlayer(dt);networkSnapshotTimer-=dt;if(networkSnapshotTimer<=0){networkSnapshotTimer=1/20;sendNetwork({type:'state',state:networkState()})}}
+  if(networkMode==='host'&&networkConnected){updateRemotePlayer(dt);updateRevives(dt);networkSnapshotTimer-=dt;if(networkSnapshotTimer<=0){networkSnapshotTimer=1/20;sendNetwork({type:'state',state:networkState()})}}
   if(playerInsideTurret()){
     if(turretEscapeTimer<=0)turretEscapeTimer=5;
     turretEscapeTimer-=dt;if(turretEscapeTimer<=0)ejectPlayerFromTurret();
@@ -1228,8 +1261,8 @@ function update(dt){
   if(bossPurgeTimer>0){bossPurgeTimer-=dt;if(bossPurgeTimer<=0){enemies.filter(e=>!e.boss).forEach(e=>burst(e.x,e.y,'#ff405d',10));enemies=enemies.filter(e=>e.boss);enemyBullets=[];notice=tr('ARENA ZAMKNIĘTA — WALKA Z BOSSEM','ARENA LOCKED — BOSS FIGHT');noticeTime=2}}
   if(turretQueued)placeTurret();
   if(healQueued)useRoleAbility();
-  let dx=clamp((keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0)+virtualMove.x,-1,1);
-  let dy=clamp((keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0)+virtualMove.y,-1,1);
+  let dx=player.hp>0?clamp((keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0)+virtualMove.x,-1,1):0;
+  let dy=player.hp>0?clamp((keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0)+virtualMove.y,-1,1):0;
   const len=Math.hypot(dx,dy)||1, forwardDash=spaceDashQueued&&player.dash<=0;
   spaceDashQueued=false;
   if(dx||dy){ player.moveX=dx/len; player.moveY=dy/len; }
@@ -1244,8 +1277,8 @@ function update(dt){
   camera.x=clamp(player.x-W/2,0,WORLD_W-W);camera.y=clamp(player.y-H/2,0,WORLD_H-H);
   bossWaves.forEach(w=>{
     w.radius+=w.speed*dt;w.life-=dt;
-    if(!w.hitPlayer&&player.inv<=0&&Math.abs(dist(player,w)-w.radius)<w.width/2+player.r){w.hitPlayer=true;player.hp-=35;playPlayerDamageSound();player.inv=.65;flash=.2;shake=20;burst(player.x,player.y,'#b858ff',22);if(player.hp<=0)endGame()}
-    if(!w.hitRemotePlayer&&remotePlayer&&remotePlayer.hp>0&&remotePlayer.inv<=0&&Math.abs(dist(remotePlayer,w)-w.radius)<w.width/2+remotePlayer.r){w.hitRemotePlayer=true;remotePlayer.hp-=35;playPlayerDamageSound();remotePlayer.inv=.65;flash=.2;shake=20;burst(remotePlayer.x,remotePlayer.y,'#b858ff',22);if(remotePlayer.hp<=0)endGame()}
+    if(!w.hitPlayer&&player.inv<=0&&Math.abs(dist(player,w)-w.radius)<w.width/2+player.r){w.hitPlayer=true;player.hp-=35;playPlayerDamageSound();player.inv=.65;flash=.2;shake=20;burst(player.x,player.y,'#b858ff',22);if(player.hp<=0)checkPlayersDefeated()}
+    if(!w.hitRemotePlayer&&remotePlayer&&remotePlayer.hp>0&&remotePlayer.inv<=0&&Math.abs(dist(remotePlayer,w)-w.radius)<w.width/2+remotePlayer.r){w.hitRemotePlayer=true;remotePlayer.hp-=35;playPlayerDamageSound();remotePlayer.inv=.65;flash=.2;shake=20;burst(remotePlayer.x,remotePlayer.y,'#b858ff',22);if(remotePlayer.hp<=0)checkPlayersDefeated()}
     turrets.forEach(t=>{
       if(t.ultra||t.hp<=0||w.hitTurrets.has(t)||Math.abs(dist(t,w)-w.radius)>=w.width/2+t.r)return;
       w.hitTurrets.add(t);t.hp--;t.hit=.18;shake=6;burst(t.x,t.y,'#b858ff',12);
@@ -1254,7 +1287,7 @@ function update(dt){
   });
   bossWaves=bossWaves.filter(w=>w.life>0&&w.radius<w.maxRadius);
   player.angle=Math.atan2(mouse.y+camera.y-player.y,mouse.x+camera.x-player.x);
-  if(mouse.down&&player.fire<=0){
+  if(player.hp>0&&mouse.down&&player.fire<=0){
     if(chosenRole==='assault'&&player.assaultWeapon==='shotgun'){
       if(player.shotgunCooldown<=0){
         const a=player.angle,projectileSpeed=rapidFirePurchased?940:650;player.fire=.2;player.shotgunCooldown=3;
@@ -1339,7 +1372,7 @@ function update(dt){
       const closeTargets=[player,remotePlayer].filter(target=>target&&target.hp>0&&target.inv<=0).sort((a,b)=>dist(e,a)-dist(e,b));e.waveCooldown-=dt;e.closeBeam-=dt;e.closeCooldown-=dt;e.angle+=dt*.35;
       if(e.waveCooldown<=0){e.waveCooldown=e.hp<=e.maxHp*.5?2.4:3.2;bossWaves.push({x:e.x,y:e.y,radius:e.r+10,speed:e.hp<=e.maxHp*.5?620:520,width:34,maxRadius:Math.hypot(WORLD_W,WORLD_H),life:7,hitPlayer:false,hitRemotePlayer:false,hitTurrets:new Set()});playElectricitySound();shake=10}
       const closeTarget=closeTargets[0];
-      if(closeTarget&&dist(e,closeTarget)<165&&e.closeCooldown<=0){e.closeAngle=Math.atan2(closeTarget.y-e.y,closeTarget.x-e.x);e.closeBeam=.22;e.closeCooldown=2.4;closeTarget.hp-=65;playPlayerDamageSound();closeTarget.inv=.7;flash=.26;shake=26;burst(closeTarget.x,closeTarget.y,'#ffffff',30);if(closeTarget.hp<=0)endGame()}
+      if(closeTarget&&dist(e,closeTarget)<165&&e.closeCooldown<=0){e.closeAngle=Math.atan2(closeTarget.y-e.y,closeTarget.x-e.x);e.closeBeam=.22;e.closeCooldown=2.4;closeTarget.hp-=65;playPlayerDamageSound();closeTarget.inv=.7;flash=.26;shake=26;burst(closeTarget.x,closeTarget.y,'#ffffff',30);if(closeTarget.hp<=0)checkPlayersDefeated()}
       return;
     }
     if(e.boss){
@@ -1350,7 +1383,7 @@ function update(dt){
       if(e.laserSound<=0){e.laserSound=1;playRedBossLaserSound()}
       bossTargets.forEach(target=>{
         if(target.inv>0)return;
-        for(let i=0;i<3;i++){const a=e.laserAngle+i*Math.PI*2/3,end={x:e.x+Math.cos(a)*4200,y:e.y+Math.sin(a)*4200};if(pointSegmentDist(target,e,end)<13){target.hp-=25;playPlayerDamageSound();target.inv=.65;flash=.16;shake=16;burst(target.x,target.y,'#ff193d',20);if(target.hp<=0)endGame();break}}
+        for(let i=0;i<3;i++){const a=e.laserAngle+i*Math.PI*2/3,end={x:e.x+Math.cos(a)*4200,y:e.y+Math.sin(a)*4200};if(pointSegmentDist(target,e,end)<13){target.hp-=25;playPlayerDamageSound();target.inv=.65;flash=.16;shake=16;burst(target.x,target.y,'#ff193d',20);if(target.hp<=0)checkPlayersDefeated();break}}
       });
       turrets.forEach(t=>{
         if(t.ultra||t.hp<=0||t.laserInv>0)return;
@@ -1363,22 +1396,23 @@ function update(dt){
         }
       });
       const closeTarget=bossTargets.filter(target=>target.inv<=0).sort((a,b)=>dist(e,a)-dist(e,b))[0];
-      if(closeTarget&&dist(e,closeTarget)<145&&e.closeCooldown<=0){e.closeAngle=Math.atan2(closeTarget.y-e.y,closeTarget.x-e.x);e.closeBeam=.18;e.closeCooldown=2.4;closeTarget.hp-=50;playPlayerDamageSound();closeTarget.inv=.7;flash=.24;shake=24;burst(closeTarget.x,closeTarget.y,'#ffffff',28);if(closeTarget.hp<=0)endGame()}
+      if(closeTarget&&dist(e,closeTarget)<145&&e.closeCooldown<=0){e.closeAngle=Math.atan2(closeTarget.y-e.y,closeTarget.x-e.x);e.closeBeam=.18;e.closeCooldown=2.4;closeTarget.hp-=50;playPlayerDamageSound();closeTarget.inv=.7;flash=.24;shake=24;burst(closeTarget.x,closeTarget.y,'#ffffff',28);if(closeTarget.hp<=0)checkPlayersDefeated()}
       return;
     }
     if(e.yellow){
-      let target=player,targetDist=dist(e,player);
+      let target=player.hp>0?player:null,targetDist=target?dist(e,player):Infinity;
       if(remotePlayer&&remotePlayer.hp>0&&dist(e,remotePlayer)<targetDist){target=remotePlayer;targetDist=dist(e,remotePlayer)}
       turrets.forEach(t=>{const td=dist(e,t);if(t.hp>0&&td<targetDist){target=t;targetDist=td}});
+      if(!target)return;
       const a=Math.atan2(target.y-e.y,target.x-e.x);e.angle=a;
       if(targetDist<=e.r+target.r){
         e.hp=0;burst(e.x,e.y,'#ffd84d',12);
-        if(target===player||target===remotePlayer){const damage=10*enemyDamageMultiplier();target.hp-=damage;playPlayerDamageSound();target.inv=Math.max(target.inv,.15);flash=.12;shake=10;burst(target.x,target.y,'#ffd84d',14);if(target.hp<=0)endGame()}
+        if(target===player||target===remotePlayer){const damage=10*enemyDamageMultiplier();target.hp-=damage;playPlayerDamageSound();target.inv=Math.max(target.inv,.15);flash=.12;shake=10;burst(target.x,target.y,'#ffd84d',14);if(target.hp<=0)checkPlayersDefeated()}
         else if(!target.ultra){const damage=10*enemyDamageMultiplier();target.hp-=damage;target.hit=.18;shake=6;burst(target.x,target.y,'#ffd84d',12);if(target.hp<=0){playBrokenCommonTowerSound();burst(target.x,target.y,'#58ffd1',28);notice=tr('WIEŻYCZKA ZNISZCZONA','TURRET DESTROYED');noticeTime=1.4}}
       }else moveEnemyToward(e,target,e.speed,dt);
       return;
     }
-    let target=chosenRole==='ghost'&&player.invisible>0?null:player,targetDist=target?dist(e,player):Infinity;
+    let target=player.hp<=0||chosenRole==='ghost'&&player.invisible>0?null:player,targetDist=target?dist(e,player):Infinity;
     if(remotePlayer&&remotePlayer.hp>0&&!(remotePlayer.role==='ghost'&&remotePlayer.invisible>0)&&dist(e,remotePlayer)<targetDist){target=remotePlayer;targetDist=dist(e,remotePlayer)}
     turrets.forEach(t=>{const td=dist(e,t);if(t.hp>0&&td<targetDist){target=t;targetDist=td}});
     enemies.forEach(ally=>{const ad=dist(e,ally);if(ally.friendly&&ally.hp>0&&ad<targetDist){target=ally;targetDist=ad}});
@@ -1443,8 +1477,8 @@ function update(dt){
       const turret=turrets.find(t=>t.hp>0&&dist(b,t)<t.r+b.r);
       if(turret){b.life=0;turret.hit=.18;shake=6;burst(turret.x,turret.y,turret.ultra?'#ffd84d':'#ff9d3d',12);if(!turret.ultra){turret.hp--;if(turret.hp<=0){playBrokenCommonTowerSound();burst(turret.x,turret.y,'#58ffd1',28);notice=tr('WIEŻYCZKA ZNISZCZONA','TURRET DESTROYED');noticeTime=1.4}}}
     }
-    if(b.life>0&&player.inv<=0&&!(chosenRole==='ghost'&&player.invisible>0)&&dist(b,player)<player.r+b.r){b.life=0;player.hp-=b.damage;playPlayerDamageSound();player.inv=.45;player.speed=chosenRole==='assassin'?390:chosenRole==='catclaw'?325:260;shake=b.damage===36?5:12;flash=b.damage===36?.06:.12;burst(player.x,player.y,'#ff405d',b.damage===36?10:18);if(player.hp<=0)endGame()}
-    if(b.life>0&&remotePlayer&&remotePlayer.hp>0&&remotePlayer.inv<=0&&!(remotePlayer.role==='ghost'&&remotePlayer.invisible>0)&&dist(b,remotePlayer)<remotePlayer.r+b.r){b.life=0;remotePlayer.hp-=b.damage;playPlayerDamageSound();remotePlayer.inv=.45;shake=b.damage===36?5:12;flash=b.damage===36?.06:.12;burst(remotePlayer.x,remotePlayer.y,'#58ffd1',b.damage===36?10:18);if(remotePlayer.hp<=0)endGame()}
+    if(b.life>0&&player.hp>0&&player.inv<=0&&!(chosenRole==='ghost'&&player.invisible>0)&&dist(b,player)<player.r+b.r){b.life=0;player.hp-=b.damage;playPlayerDamageSound();player.inv=.45;player.speed=chosenRole==='assassin'?390:chosenRole==='catclaw'?325:260;shake=b.damage===36?5:12;flash=b.damage===36?.06:.12;burst(player.x,player.y,'#ff405d',b.damage===36?10:18);if(player.hp<=0)checkPlayersDefeated()}
+    if(b.life>0&&remotePlayer&&remotePlayer.hp>0&&remotePlayer.inv<=0&&!(remotePlayer.role==='ghost'&&remotePlayer.invisible>0)&&dist(b,remotePlayer)<remotePlayer.r+b.r){b.life=0;remotePlayer.hp-=b.damage;playPlayerDamageSound();remotePlayer.inv=.45;shake=b.damage===36?5:12;flash=b.damage===36?.06:.12;burst(remotePlayer.x,remotePlayer.y,'#58ffd1',b.damage===36?10:18);if(remotePlayer.hp<=0)checkPlayersDefeated()}
   }
   pickups.forEach(p=>{
     if(p.life<=0)return;
@@ -1461,6 +1495,11 @@ function update(dt){
 }
 
 function formatFinalStats(result){return tr(`Wynik: ${result.score.toLocaleString('pl-PL')}  •  Pokonani: ${result.kills}  •  Fala: ${result.wave}  •  Zdobyte klejnoty: ${result.earnedGems}`,`Score: ${result.score.toLocaleString('en-US')}  •  Defeated: ${result.kills}  •  Wave: ${result.wave}  •  Gems earned: ${result.earnedGems}`)}
+function checkPlayersDefeated(){
+  if(player&&player.hp>0)return;
+  if(networkMode!=='solo'&&remotePlayer&&remotePlayer.hp>0)return;
+  endGame();
+}
 function endGame(){if(!running)return;running=false;if(score>highscore){highscore=score;try{localStorage.setItem(HIGHSCORE_STORAGE_KEY,String(highscore))}catch{}updateHighscore()}const earnedGems=awardGems(kills*gemMultiplier),result={score,kills,wave,earnedGems};stopInGameMusic();gameOverSound.currentTime=0;gameOverSound.play().catch(()=>{});finalStats.textContent=formatFinalStats(result);if(networkMode==='host')sendNetwork({type:'end',result});gameOverScreen.classList.remove('hidden')}
 
 function roleHud(){
@@ -1669,6 +1708,13 @@ function draw(){
 
   if(player)drawBasicPlayerModel(player,'#c8ff3d',null,chosenRole==='madman'?(dualShotPurchased?dualShotMadmanPlayerImage:madmanPlayerImage):(dualShotPurchased?dualShotPlayerImage:basicPlayerImage));
   if(remotePlayer)drawBasicPlayerModel(remotePlayer,'#58ffd1','#58ffd1',remotePlayer.role==='madman'?(remotePlayer.dualShotPurchased?dualShotMadmanPlayerImage:madmanPlayerImage):(remotePlayer.dualShotPurchased?dualShotPlayerImage:basicPlayerImage));
+  if(networkMode!=='solo'&&player&&remotePlayer)[player,remotePlayer].forEach(entity=>{
+    if(entity.hp>0)return;
+    const rescuer=entity===player?remotePlayer:player,near=rescuer.hp>0&&dist(entity,rescuer)<=REVIVE_DISTANCE,progress=clamp((entity.reviveProgress||0)/REVIVE_DURATION,0,1),width=86;
+    ctx.save();ctx.textAlign='center';ctx.shadowBlur=14;ctx.shadowColor='#ff405d';ctx.strokeStyle='#ff405d';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(entity.x-11,entity.y-11);ctx.lineTo(entity.x+11,entity.y+11);ctx.moveTo(entity.x+11,entity.y-11);ctx.lineTo(entity.x-11,entity.y+11);ctx.stroke();ctx.shadowBlur=0;
+    ctx.font="800 11px 'JetBrains Mono'";ctx.fillStyle=near?'#eef4e8':'#ff8798';ctx.fillText(near?tr('PRZYTRZYMAJ F — PODNIEŚ','HOLD F — REVIVE'):tr('POLEGŁY','DOWN'),entity.x,entity.y+42);
+    if(near||progress>0){ctx.fillStyle='#20282e';ctx.fillRect(entity.x-width/2,entity.y+49,width,7);ctx.fillStyle='#58ffd1';ctx.fillRect(entity.x-width/2,entity.y+49,width*progress,7);ctx.strokeStyle='rgba(238,244,232,.5)';ctx.lineWidth=1;ctx.strokeRect(entity.x-width/2,entity.y+49,width,7)}ctx.restore();
+  });
   if(networkMode!=='solo')[player&&{entity:player,color:'#c8ff3d',remote:false},remotePlayer&&{entity:remotePlayer,color:'#58ffd1',remote:true}].filter(Boolean).forEach(({entity,color,remote})=>{
     if(!entity.name)return;
     ctx.save();ctx.textAlign='center';ctx.font="800 13px 'JetBrains Mono'";ctx.lineWidth=4;ctx.strokeStyle='rgba(5,7,10,.9)';ctx.strokeText(entity.name,entity.x,entity.y-31);ctx.fillStyle=color;ctx.fillText(entity.name,entity.x,entity.y-31);
