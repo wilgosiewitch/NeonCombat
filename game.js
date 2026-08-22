@@ -377,8 +377,10 @@ translations.en.role_necromancer='NECROMANCER';
 translations.en.desc_necromancer='75 HP • 50% chance to raise a defeated enemy';
 Object.assign(translations.pl,{difficulty_title:'POZIOM TRUDNOŚCI',difficulty_easy:'ŁATWY',difficulty_easy_desc:'Klejnoty ×0,5 • wrogowie ×0,5',difficulty_normal:'NORMALNY',difficulty_normal_desc:'Standardowe zasady • klejnoty ×1',difficulty_hard:'TRUDNY',difficulty_hard_desc:'Klejnoty, wrogowie, HP i obrażenia ×1,5',difficulty_mad:'SZALONY',difficulty_mad_desc:'Klejnoty ×3 • wrogowie, HP i obrażenia ×2'});
 Object.assign(translations.en,{difficulty_title:'DIFFICULTY',difficulty_easy:'EASY',difficulty_easy_desc:'Gems ×0.5 • enemies ×0.5',difficulty_normal:'NORMAL',difficulty_normal_desc:'Standard rules • gems ×1',difficulty_hard:'HARD',difficulty_hard_desc:'Gems, enemies, HP and damage ×1.5',difficulty_mad:'INSANE',difficulty_mad_desc:'Gems ×3 • enemies, HP and damage ×2'});
+Object.assign(translations.pl,{game_mode:'TRYB GRY',mode_solo:'SOLO',mode_host:'HOSTUJ',mode_join:'DOŁĄCZ',your_tailscale_ip:'TWÓJ ADRES TAILSCALE',copy_code:'KOPIUJ KOD',your_code:'TWÓJ KOD'});
+Object.assign(translations.en,{game_mode:'GAME MODE',mode_solo:'SOLO',mode_host:'HOST',mode_join:'JOIN',your_tailscale_ip:'YOUR TAILSCALE ADDRESS',copy_code:'COPY CODE',your_code:'YOUR CODE'});
 const tr=(pl,en)=>language==='pl'?pl:en;
-function setLanguage(next){language=next;document.documentElement.lang=next;document.querySelectorAll('[data-i18n]').forEach(el=>el.innerHTML=translations[next][el.dataset.i18n]);document.querySelectorAll('[data-lang]').forEach(b=>b.classList.toggle('active',b.dataset.lang===next));updateGemBalance();updateHighscore();updatePaidRoles();updateDoubleGemsBuff();updateDoubleEnergyBuff();}
+function setLanguage(next){language=next;document.documentElement.lang=next;document.querySelectorAll('[data-i18n]').forEach(el=>el.innerHTML=translations[next][el.dataset.i18n]);document.querySelectorAll('[data-lang]').forEach(b=>b.classList.toggle('active',b.dataset.lang===next));updateGemBalance();updateHighscore();updatePaidRoles();updateDoubleGemsBuff();updateDoubleEnergyBuff();refreshNetworkLanguage();}
 
 const GEM_STORAGE_KEY='neonStormGems';
 const HIGHSCORE_STORAGE_KEY='neonStormHighscore';
@@ -621,6 +623,22 @@ let remoteInput={dx:0,dy:0,angle:0,shoot:false,dash:false};
 let networkSendTimer=0,networkSnapshotTimer=0;
 let nextNetworkEntityId=1;
 let lastNetworkSnapshotAt=0;
+const NETWORK_COPY={
+  offerPrompt:['Wygeneruj ofertę i wyślij kod drugiemu graczowi.','Generate an offer and send the code to the other player.'],
+  answerPrompt:['Wklej kod hosta, a następnie utwórz odpowiedź.','Paste the host code, then create an answer.'],
+  answerLabel:['KOD ODPOWIEDZI OD DRUGIEGO GRACZA','ANSWER CODE FROM THE OTHER PLAYER'],offerLabel:['KOD OFERTY OD HOSTA','OFFER CODE FROM THE HOST'],
+  generateOffer:['GENERUJ OFERTĘ','GENERATE OFFER'],createAnswer:['UTWÓRZ ODPOWIEDŹ','CREATE ANSWER'],confirmAnswer:['ZATWIERDŹ ODPOWIEDŹ','CONFIRM ANSWER'],
+  connectedHost:['Gracz dołączył. Możesz rozpocząć grę.','Player joined. You can start the game.'],connectedGuest:['Połączono z hostem. Czekaj na rozpoczęcie gry.','Connected to host. Wait for the game to start.'],
+  routeCheck:['Sprawdzanie dostępnych tras połączenia…','Checking available connection routes…'],disconnected:['Drugi gracz rozłączył się.','The other player disconnected.'],
+  copied:['Kod skopiowany do schowka.','Code copied to clipboard.'],connecting:['Łączenie z drugim graczem…','Connecting to the other player…'],
+  sendOffer:['Wyślij ofertę. Potem wklej poniżej kod odpowiedzi.','Send the offer, then paste the answer code below.'],sendAnswer:['Wyślij ten kod hostowi i poczekaj na połączenie.','Send this code to the host and wait for the connection.']
+};
+const netTr=key=>NETWORK_COPY[key][language==='pl'?0:1];
+function refreshNetworkLanguage(){
+  networkInput.placeholder=tr('Wklej kod tutaj','Paste code here');networkOutput.placeholder=tr('Kod pojawi się tutaj','The code will appear here');
+  if(networkMode==='host'){networkInputLabel.textContent=netTr('answerLabel');networkActionBtn.textContent=peerConnection?netTr('confirmAnswer'):netTr('generateOffer')}
+  if(networkMode==='join'){networkInputLabel.textContent=netTr('offerLabel');networkActionBtn.textContent=netTr('createAnswer')}
+}
 const encodeSignal=value=>btoa(JSON.stringify(value));
 const decodeSignal=value=>JSON.parse(atob(value.trim()));
 function validTailscaleIp(value){
@@ -629,7 +647,7 @@ function validTailscaleIp(value){
 }
 function tailscaleDescription(description){
   const tailscaleIp=tailscaleIpInput.value.trim();
-  if(!validTailscaleIp(tailscaleIp))throw new Error('Wpisz swój adres Tailscale z zakresu 100.64.0.0–100.127.255.255.');
+  if(!validTailscaleIp(tailscaleIp))throw new Error(tr('Wpisz swój adres Tailscale z zakresu 100.64.0.0–100.127.255.255.','Enter your Tailscale address from the 100.64.0.0–100.127.255.255 range.'));
   const lines=description.sdp.split(/\r?\n/).map(line=>{
     if(!line.startsWith('a=candidate:')||!line.includes(' typ host'))return line;
     const parts=line.split(' ');if(parts.length>=8)parts[4]=tailscaleIp;return parts.join(' ');
@@ -650,39 +668,40 @@ function selectNetworkMode(mode){
   [soloModeBtn,hostModeBtn,joinModeBtn].forEach((button,index)=>button.classList.toggle('active',['solo','host','join'][index]===mode));
   multiplayerExchange.classList.toggle('hidden',mode==='solo');
   if(mode==='host'){
-    networkInputLabel.textContent='KOD ODPOWIEDZI OD DRUGIEGO GRACZA';networkActionBtn.textContent='GENERUJ OFERTĘ';
-    setNetworkStatus('Wygeneruj ofertę i wyślij kod drugiemu graczowi.');
+    networkInputLabel.textContent=netTr('answerLabel');networkActionBtn.textContent=netTr('generateOffer');
+    setNetworkStatus(netTr('offerPrompt'));
   }else if(mode==='join'){
-    networkInputLabel.textContent='KOD OFERTY OD HOSTA';networkActionBtn.textContent='UTWÓRZ ODPOWIEDŹ';
-    setNetworkStatus('Wklej kod hosta, a następnie utwórz odpowiedź.');
+    networkInputLabel.textContent=netTr('offerLabel');networkActionBtn.textContent=netTr('createAnswer');
+    setNetworkStatus(netTr('answerPrompt'));
   }
 }
 function createPeer(){
   const pc=new RTCPeerConnection({iceServers:[{urls:['stun:stun.cloudflare.com:3478','stun:stun.l.google.com:19302']}]});
   pc.oniceconnectionstatechange=()=>{
-    if(pc.iceConnectionState==='checking')setNetworkStatus('Sprawdzanie dostępnych tras połączenia…');
-    if(pc.iceConnectionState==='failed')setNetworkStatus('Nie znaleziono bezpośredniej trasy. Sprawdź Tailscale/zaporę i wygeneruj nowe kody.',true);
+    if(pc.iceConnectionState==='checking')setNetworkStatus(netTr('routeCheck'));
+    if(pc.iceConnectionState==='failed')setNetworkStatus(tr('Nie znaleziono bezpośredniej trasy. Sprawdź Tailscale/zaporę i wygeneruj nowe kody.','No direct route found. Check Tailscale/firewall and generate new codes.'),true);
   };
   pc.onconnectionstatechange=()=>{
     if(pc.connectionState==='connected')refreshNetworkConnection();
-    else if(['failed','disconnected','closed'].includes(pc.connectionState)){networkConnected=false;setNetworkStatus('Połączenie zostało przerwane.',true)}
+    else if(['failed','disconnected','closed'].includes(pc.connectionState)){networkConnected=false;setNetworkStatus(tr('Połączenie zostało przerwane.','Connection interrupted.'),true)}
   };
   return pc;
 }
 function refreshNetworkConnection(){
   networkConnected=Boolean(controlChannel&&controlChannel.readyState==='open'&&stateChannel&&stateChannel.readyState==='open');
-  if(networkConnected){setNetworkStatus(networkMode==='host'?'Gracz dołączył. Możesz rozpocząć grę.':'Połączono z hostem. Czekaj na rozpoczęcie gry.');if(networkMode==='join')sendNetwork({type:'role',role:chosenRole})}
+  if(networkConnected){setNetworkStatus(networkMode==='host'?netTr('connectedHost'):netTr('connectedGuest'));if(networkMode==='join')sendNetwork({type:'role',role:chosenRole})}
 }
 function attachDataChannel(channel){
   if(channel.label==='neon-state')stateChannel=channel;else controlChannel=channel;
   channel.binaryType='arraybuffer';channel.onopen=refreshNetworkConnection;
-  channel.onclose=()=>{networkConnected=false;setNetworkStatus('Drugi gracz rozłączył się.',true)};
+  channel.onclose=()=>{networkConnected=false;setNetworkStatus(netTr('disconnected'),true)};
   channel.onmessage=event=>{
     let message;try{message=JSON.parse(event.data)}catch{return}
     if(networkMode==='host'&&message.type==='input')remoteInput=message.input;
     if(networkMode==='host'&&message.type==='role'&&message.role){remoteRole=message.role;createRemotePlayer(remoteRole)}
     if(networkMode==='host'&&message.type==='action')handleRemoteAction(message);
     if(networkMode==='join'&&message.type==='sound')playNetworkSound(message.sound);
+    if(networkMode==='join'&&message.type==='upgradeResult'&&shopOpen)toggleShop(true);
     if(networkMode==='join'&&message.type==='start'){chosenRole=message.guestRole||chosenRole;running=true;startScreen.classList.add('hidden');gameOverScreen.classList.add('hidden');stopLobbyMusic();inGameMusicActive=true;playInGameMusic()}
     if(networkMode==='join'&&message.type==='state')applyNetworkState(message.state);
     if(networkMode==='join'&&message.type==='end'){running=false;stopInGameMusic();gameOverSound.currentTime=0;gameOverSound.play().catch(()=>{});gameOverScreen.classList.remove('hidden');finalStats.textContent=message.stats||'KONIEC GRY'}
@@ -695,13 +714,13 @@ async function hostNetworkAction(){
       attachDataChannel(peerConnection.createDataChannel('neon-state',{ordered:false,maxRetransmits:0}));
       await peerConnection.setLocalDescription(await peerConnection.createOffer());await waitForIce(peerConnection);
       networkOutput.value=encodeSignal(tailscaleDescription(peerConnection.localDescription));copyNetworkCodeBtn.disabled=false;
-      networkActionBtn.textContent='ZATWIERDŹ ODPOWIEDŹ';setNetworkStatus('Wyślij ofertę. Potem wklej poniżej kod odpowiedzi.');
+      networkActionBtn.textContent=netTr('confirmAnswer');setNetworkStatus(netTr('sendOffer'));
     }else{
       if(!networkInput.value.trim())throw new Error('Wklej kod odpowiedzi.');
-      await peerConnection.setRemoteDescription(decodeSignal(networkInput.value));setNetworkStatus('Łączenie z drugim graczem…');
-      setTimeout(()=>{if(peerConnection&&!networkConnected)setNetworkStatus('Połączenie nie powiodło się. Włącz Tailscale na obu komputerach, sprawdź zaporę i utwórz nowe kody.',true)},15000);
+      await peerConnection.setRemoteDescription(decodeSignal(networkInput.value));setNetworkStatus(netTr('connecting'));
+      setTimeout(()=>{if(peerConnection&&!networkConnected)setNetworkStatus(tr('Połączenie nie powiodło się. Włącz Tailscale na obu komputerach, sprawdź zaporę i utwórz nowe kody.','Connection failed. Enable Tailscale on both computers, check the firewall, and create new codes.'),true)},15000);
     }
-  }catch(error){setNetworkStatus(`Błąd: ${error.message}`,true)}
+  }catch(error){setNetworkStatus(`${tr('Błąd','Error')}: ${error.message}`,true)}
 }
 async function joinNetworkAction(){
   try{
@@ -710,15 +729,20 @@ async function joinNetworkAction(){
     await peerConnection.setRemoteDescription(decodeSignal(networkInput.value));
     await peerConnection.setLocalDescription(await peerConnection.createAnswer());await waitForIce(peerConnection);
     networkOutput.value=encodeSignal(tailscaleDescription(peerConnection.localDescription));copyNetworkCodeBtn.disabled=false;
-    networkActionBtn.disabled=true;setNetworkStatus('Wyślij ten kod hostowi i poczekaj na połączenie.');
-  }catch(error){setNetworkStatus(`Błąd: ${error.message}`,true)}
+    networkActionBtn.disabled=true;setNetworkStatus(netTr('sendAnswer'));
+  }catch(error){setNetworkStatus(`${tr('Błąd','Error')}: ${error.message}`,true)}
 }
 function sendNetwork(message){
   const channel=message.type==='state'||message.type==='input'||message.type==='sound'?stateChannel:controlChannel;
   if(!channel||channel.readyState!=='open'||channel.bufferedAmount>262144)return;
   channel.send(JSON.stringify(message));
 }
-function broadcastSound(sound){if(networkMode==='host'&&networkConnected)sendNetwork({type:'sound',sound})}
+const lastNetworkSoundAt=new Map();
+function broadcastSound(sound){
+  if(networkMode!=='host'||!networkConnected)return;
+  const minimumGap={towerShot:70,enemyShot:60,playerShot:35}[sound]||0,now=performance.now(),last=lastNetworkSoundAt.get(sound)||0;
+  if(now-last<minimumGap)return;lastNetworkSoundAt.set(sound,now);sendNetwork({type:'sound',sound});
+}
 function playNetworkSound(sound){
   const players={dash:playDashSound,catTeleport:playCatTeleportSound,setTrap:playSetTrapSound,shieldOn:playShieldOnSound,shieldProtected:playShieldProtectedSound,electricity:playElectricitySound,shopBuying:playShopBuyingSound,playerDamage:playPlayerDamageSound,towerBuilding:playTowerBuildingSound,towerShot:playCommonTowerShotSound,towerBroken:playBrokenCommonTowerSound,bossLaser:playRedBossLaserSound,bossDead:playRedBossDeadSound,enemyShot:playEnemyShotSound,playerShot:playPlayerBulletSound};
   if(players[sound])players[sound]();
@@ -727,27 +751,56 @@ function handleRemoteAction(message){
   if(!running||networkMode!=='host'||!remotePlayer)return;
   if(message.action==='placeTurret')placeTurret({x:message.x,y:message.y});
   if(message.action==='upgradeTurret'){const turret=turrets.find(item=>item.netId===message.turretId);if(turret)upgradeSelectedTurret(turret)}
+  if(message.action==='buyUpgrade')buyRemoteUpgrade(message.upgrade);
+  if(message.action==='stopInput')remoteInput={dx:0,dy:0,angle:remoteInput.angle||0,shoot:false,dash:false};
+}
+function requestRemoteUpgrade(upgrade){sendNetwork({type:'action',action:'buyUpgrade',upgrade})}
+function buyRemoteUpgrade(upgrade){
+  const p=remotePlayer;if(!p)return;
+  if(upgrade==='damage'){const level=p.damageUpgradeLevel||0,cost=(level+1)*300;if(level>=10||credits<cost)return;credits-=cost;p.damageUpgradeLevel=level+1;p.damageMultiplier=1+p.damageUpgradeLevel*.3}
+  else if(upgrade==='regen'){if(p.healthRegen||credits<750)return;credits-=750;p.healthRegen=true}
+  else if(upgrade==='rapid'){if(p.rapidFirePurchased||credits<2000)return;credits-=2000;p.rapidFirePurchased=true}
+  else if(upgrade==='dual'){if(p.dualShotPurchased||credits<3000)return;credits-=3000;p.dualShotPurchased=true}
+  else if(upgrade==='hp'){const level=p.playerHpUpgradeLevel||0,cost=500+level*250;if(level>=10||credits<cost)return;credits-=cost;p.playerHpUpgradeLevel=level+1;p.maxHp+=10;p.hp+=10}
+  else if(upgrade==='fireTrail'){const level=p.fireTrailUpgradeLevel||0,cost=350+level*100;if(level>=15||credits<cost)return;credits-=cost;p.fireTrailUpgradeLevel=level+1;p.fireTrailSpawn=0}
+  else if(upgrade==='turretHp'){if(turretHpMultiplier>1||credits<500)return;credits-=500;turretHpMultiplier=2;turrets.forEach(t=>{if(!t.ultra){t.hp*=2;t.maxHp*=2}})}
+  else if(upgrade==='turretRegen'){if(turretRegenPurchased||credits<3000)return;credits-=3000;turretRegenPurchased=true}
+  else if(upgrade==='ultra'){if(ultraTurretPurchased||credits<1500||turrets.some(t=>t.hp>0&&dist(t,p)<65))return;credits-=1500;ultraTurretPurchased=true;turrets.push({x:p.x,y:p.y,r:25,hp:1,maxHp:1,hit:0,angle:p.angle,fire:0,range:650,ultra:true});playTowerBuildingSound();burst(p.x,p.y,'#ffd84d',36)}
+  else return;
+  registerShopUpgradePurchase();playShopBuyingSound();notice=tr('ULEPSZENIE GRACZA 2 KUPIONE','PLAYER 2 UPGRADE PURCHASED');noticeTime=1.5;sendNetwork({type:'upgradeResult'});
 }
 function createRemotePlayer(role='medic'){
   const maxHp=role==='tank'?125:role==='assassin'||role==='necromancer'?75:role==='assault'?85:role==='alchemist'?80:role==='sapper'?105:100;
-  remotePlayer={x:PLAYER_START.x+70,y:PLAYER_START.y,r:17,hp:maxHp,maxHp,speed:role==='assassin'?390:role==='catclaw'?325:260,angle:0,moveX:1,moveY:0,fire:0,dash:0,inv:0,role};
+  remotePlayer={x:PLAYER_START.x+70,y:PLAYER_START.y,r:17,hp:maxHp,maxHp,speed:role==='assassin'?390:role==='catclaw'?325:260,angle:0,moveX:1,moveY:0,fire:0,dash:0,inv:0,role,damageUpgradeLevel:0,damageMultiplier:1,healthRegen:false,rapidFirePurchased:false,dualShotPurchased:false,playerHpUpgradeLevel:0,fireTrailUpgradeLevel:0,fireTrailSpawn:0};
 }
 function updateRemotePlayer(dt){
   if(!remotePlayer)return;remotePlayer.fire-=dt;remotePlayer.dash-=dt;remotePlayer.inv-=dt;
+  if(remotePlayer.healthRegen&&remotePlayer.hp>0)remotePlayer.hp=Math.min(remotePlayer.maxHp,remotePlayer.hp+dt);
+  if(remotePlayer.fireTrailUpgradeLevel>0){remotePlayer.fireTrailSpawn-=dt;if(remotePlayer.fireTrailSpawn<=0){remotePlayer.fireTrailSpawn=.18;fireTrail.push({x:remotePlayer.x-remotePlayer.moveX*16,y:remotePlayer.y-remotePlayer.moveY*16,r:22,life:1.4,max:1.4,phase:rand(0,Math.PI*2),level:remotePlayer.fireTrailUpgradeLevel,remote:true})}}
   const dx=remoteInput.dx||0,dy=remoteInput.dy||0,len=Math.hypot(dx,dy)||1;
   if(dx||dy){remotePlayer.moveX=dx/len;remotePlayer.moveY=dy/len}remotePlayer.angle=remoteInput.angle||0;
   if(remoteInput.dash&&remotePlayer.dash<=0){remotePlayer.dash=1.4;remotePlayer.inv=.22;playDashSound();for(let i=0;i<5;i++)moveBody(remotePlayer,remotePlayer.moveX*23,remotePlayer.moveY*23,remotePlayer.r,1)}
   remotePlayer.vx=dx/len*remotePlayer.speed;remotePlayer.vy=dy/len*remotePlayer.speed;
   moveBody(remotePlayer,remotePlayer.vx,remotePlayer.vy,remotePlayer.r,dt);
   if(remoteInput.shoot&&remotePlayer.fire<=0){
-    remotePlayer.fire=.115;const a=remotePlayer.angle+rand(-.025,.025);
-    bullets.push({x:remotePlayer.x+Math.cos(a)*25,y:remotePlayer.y+Math.sin(a)*25,vx:Math.cos(a)*720,vy:Math.sin(a)*720,life:1.2,remote:true});
+    remotePlayer.fire=remotePlayer.rapidFirePurchased ? .115*.65 : .115;const a=remotePlayer.angle+rand(-.025,.025),speed=remotePlayer.rapidFirePurchased?1050:720,angles=remotePlayer.dualShotPurchased?[a,a+Math.PI]:[a];
+    angles.forEach(angle=>bullets.push({x:remotePlayer.x+Math.cos(angle)*25,y:remotePlayer.y+Math.sin(angle)*25,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:1.2,remote:true}));
     playPlayerBulletSound();
   }
   remoteInput.dash=false;
 }
 const networkEntity=entity=>{if(!entity.netId)entity.netId=nextNetworkEntityId++;const copy={...entity};delete copy.path;delete copy.pathGoal;delete copy.hitTurrets;return copy};
-function networkState(){return {sentAt:performance.now(),player,remotePlayer,bullets:bullets.map(networkEntity),enemies:enemies.map(networkEntity),particles:[],explosions:[],enemyBullets:enemyBullets.map(networkEntity),pickups,obstacles,turrets:turrets.map(networkEntity),traps,lightningEffects:[],catLaserEffects:[],alchemyFields,bossWaves:bossWaves.map(networkEntity),fireTrail,score,credits,wave,kills,shake,flash,notice,noticeTime,visualTime,bossSpawnTimer,bossSpawnPoint}}
+function networkEnemy(enemy){
+  if(!enemy.netId)enemy.netId=nextNetworkEntityId++;
+  const {netId,x,y,r,hp,maxHp,speed,angle=0,hit=0,tank=false,elite=false,yellow=false,boss=false,redBoss=false,waveBoss=false,friendly=false,undead=false,freeze=0,burn=0,laserAngle=0,closeBeam=0,closeAngle=0}=enemy;
+  return {netId,x,y,r,hp,maxHp,speed,angle,hit,tank,elite,yellow,boss,redBoss,waveBoss,friendly,undead,freeze,burn,laserAngle,closeBeam,closeAngle};
+}
+function networkProjectile(projectile){
+  if(!projectile.netId)projectile.netId=nextNetworkEntityId++;
+  const {netId,x,y,vx,vy,life,r=4,turret=false,ultra=false,ally=false,undead=false,oneShot=false,special=false,reflected=false,remote=false}=projectile;
+  return {netId,x,y,vx,vy,life,r,turret,ultra,ally,undead,oneShot,special,reflected,remote};
+}
+function networkState(){return {sentAt:performance.now(),player,remotePlayer,bullets:bullets.map(networkProjectile),enemies:enemies.map(networkEnemy),particles:[],explosions:[],enemyBullets:enemyBullets.map(networkProjectile),pickups,obstacles,turrets:turrets.map(networkEntity),traps,lightningEffects:[],catLaserEffects:[],alchemyFields,bossWaves:bossWaves.map(networkEntity),fireTrail:fireTrail.slice(-100),score,credits,wave,kills,shake,flash,notice,noticeTime,visualTime,bossSpawnTimer,bossSpawnPoint,teamUpgrades:{turretHpMultiplier,turretRegenPurchased,ultraTurretPurchased}}}
 function reconcileNetworkEntities(current,next,blend=.45,snapshotDt=1/30){
   const previous=new Map((current||[]).filter(item=>item.netId).map(item=>[item.netId,item]));
   return (next||[]).map(item=>{
@@ -769,6 +822,8 @@ function applyNetworkState(state){
   const authoritativePlayer=state.remotePlayer;
   if(authoritativePlayer&&player&&running){const error=Math.hypot(authoritativePlayer.x-player.x,authoritativePlayer.y-player.y),blend=error>180?1:.28;player={...authoritativePlayer,x:player.x+(authoritativePlayer.x-player.x)*blend,y:player.y+(authoritativePlayer.y-player.y)*blend}}
   else player=authoritativePlayer||player;
+  if(player&&networkMode==='join'){damageUpgradeLevel=player.damageUpgradeLevel||0;playerDamageMultiplier=player.damageMultiplier||1;healthRegen=Boolean(player.healthRegen);rapidFirePurchased=Boolean(player.rapidFirePurchased);dualShotPurchased=Boolean(player.dualShotPurchased);playerHpUpgradeLevel=player.playerHpUpgradeLevel||0;fireTrailUpgradeLevel=player.fireTrailUpgradeLevel||0}
+  if(state.teamUpgrades&&networkMode==='join'){turretHpMultiplier=state.teamUpgrades.turretHpMultiplier;turretRegenPurchased=state.teamUpgrades.turretRegenPurchased;ultraTurretPurchased=state.teamUpgrades.ultraTurretPurchased}
   if(state.player){const old=remotePlayer,error=old?Math.hypot(state.player.x-old.x,state.player.y-old.y):Infinity,blend=error>220?1:.45;remotePlayer=old?{...state.player,x:old.x+(state.player.x-old.x)*blend,y:old.y+(state.player.y-old.y)*blend}:state.player}
   bullets=reconcileNetworkEntities(bullets,state.bullets,.6,snapshotDt);enemies=reconcileNetworkEntities(enemies,state.enemies,.4,snapshotDt);particles=state.particles||[];explosions=state.explosions||[];enemyBullets=reconcileNetworkEntities(enemyBullets,state.enemyBullets,.6,snapshotDt);pickups=state.pickups||[];obstacles=state.obstacles||[];turrets=state.turrets||[];traps=state.traps||[];lightningEffects=state.lightningEffects||[];catLaserEffects=state.catLaserEffects||[];alchemyFields=state.alchemyFields||[];bossWaves=state.bossWaves||[];fireTrail=state.fireTrail||[];
   if(selectedTurret?.netId)selectedTurret=turrets.find(item=>item.netId===selectedTurret.netId)||null;
@@ -1025,7 +1080,7 @@ function update(dt){
     return;
   }
   visualTime+=dt;
-  if(networkMode==='host'&&networkConnected){updateRemotePlayer(dt);networkSnapshotTimer-=dt;if(networkSnapshotTimer<=0){networkSnapshotTimer=1/30;sendNetwork({type:'state',state:networkState()})}}
+  if(networkMode==='host'&&networkConnected){updateRemotePlayer(dt);networkSnapshotTimer-=dt;if(networkSnapshotTimer<=0){networkSnapshotTimer=1/20;sendNetwork({type:'state',state:networkState()})}}
   if(playerInsideTurret()){
     if(turretEscapeTimer<=0)turretEscapeTimer=5;
     turretEscapeTimer-=dt;if(turretEscapeTimer<=0)ejectPlayerFromTurret();
@@ -1234,7 +1289,7 @@ function update(dt){
     if(f.life<=0)return;
     enemies.forEach(e=>{
       if(e.hp<=0||e.friendly||e.fireTrailHit>0||dist(f,e)>=f.r+e.r)return;
-      e.hp-=1+fireTrailUpgradeLevel*.2;e.fireTrailHit=.35;e.hit=.08;burst(e.x,e.y,'#ff713d',1);
+      e.hp-=1+(f.level??fireTrailUpgradeLevel)*.2;e.fireTrailHit=.35;e.hit=.08;burst(e.x,e.y,'#ff713d',1);
       if(e.hp<=0){credits+=energyReward(e.boss?500:e.elite?150:e.tank?60:30);addScore(e.boss?3000:e.elite?750:e.tank?300:100);kills++;if(e.elite)eliteRespawn=20;if(e.redBoss)resumeWavesAfterRedBoss();if(e.waveBoss)resumeWavesAfterUpgradeBoss();tryRaiseUndead(e)}
     });
   });
@@ -1244,7 +1299,8 @@ function update(dt){
     if(b.special&&!e.boss){e.friendly=true;e.maxHp*=4;e.hp=e.maxHp;e.shoot=.3;e.allyDodge=0;e.hit=.2;burst(e.x,e.y,'#43cfff',25);notice=tr('WRÓG PRZEJĘTY — ŻYCIE ×4','ENEMY CONTROLLED — HEALTH ×4');noticeTime=1.5;continue}
     if(b.special&&e.boss){notice=tr('TYTAN JEST ODPORNY NA PRZEJĘCIE','TITAN IS IMMUNE TO CONTROL');noticeTime=1.5;burst(b.x,b.y,'#ff193d',10);continue}
     const playerShot=!b.turret||b.reflected;
-    const normalDamage=playerShot?(chosenRole==='assassin'?2:1)*playerDamageMultiplier:(b.turretDamage||1);
+    const shooterRole=b.remote?remotePlayer?.role:chosenRole,shotMultiplier=b.remote?(remotePlayer?.damageMultiplier||1):playerDamageMultiplier;
+    const normalDamage=playerShot?(shooterRole==='assassin'?2:1)*shotMultiplier:(b.turretDamage||1);
     const damage=b.oneShot&&!e.boss?e.hp:(b.allyDamage??normalDamage);
     e.hp-=damage;e.hit=.08;addScore(20);burst(b.x,b.y,b.turret?'#58ffd1':'#eaffac',5);
     if(chosenRole==='electrician'&&!b.turret)chainLightning(e,damage);
@@ -1290,6 +1346,7 @@ function roleHud(){
 function toggleShop(force){
   if(!running||pauseOpen)return;
   shopOpen=typeof force==='boolean'?force:!shopOpen;
+  if(networkMode==='join'&&shopOpen)sendNetwork({type:'action',action:'stopInput'});
   shopScreen.classList.toggle('hidden',!shopOpen);shopEnergy.textContent=`${credits} ${tr('ENERGII','ENERGY')}`;
   turretHpUpgrade.disabled=turretHpMultiplier>1||credits<500;
   turretHpUpgrade.innerHTML=turretHpMultiplier>1?tr('KUPIONO','PURCHASED'):credits<500?`<strong>500</strong> — ${tr('BRAK ENERGII','NOT ENOUGH ENERGY')}`:`<strong>500</strong> ${tr('ENERGII','ENERGY')}`;
@@ -1317,6 +1374,7 @@ function toggleShop(force){
 }
 
 function buyTurretHpUpgrade(){
+  if(networkMode==='join'){requestRemoteUpgrade('turretHp');return}
   if(!shopOpen||turretHpMultiplier>1||credits<500)return;
   credits-=500;turretHpMultiplier=2;registerShopUpgradePurchase();
   turrets.forEach(t=>{if(!t.ultra){t.hp*=2;t.maxHp*=2}});
@@ -1324,17 +1382,20 @@ function buyTurretHpUpgrade(){
 }
 
 function buyDamageUpgrade(){
+  if(networkMode==='join'){requestRemoteUpgrade('damage');return}
   const cost=(damageUpgradeLevel+1)*300;
   if(!shopOpen||damageUpgradeLevel>=10||credits<cost)return;
   credits-=cost;damageUpgradeLevel++;playerDamageMultiplier=1+damageUpgradeLevel*.3;registerShopUpgradePurchase();toggleShop(true);
 }
 
 function buyRegenUpgrade(){
+  if(networkMode==='join'){requestRemoteUpgrade('regen');return}
   if(!shopOpen||healthRegen||credits<750)return;
   credits-=750;healthRegen=true;registerShopUpgradePurchase();toggleShop(true);
 }
 
 function buyTurretRegen(){
+  if(networkMode==='join'){requestRemoteUpgrade('turretRegen');return}
   if(!shopOpen||turretRegenPurchased||credits<3000)return;
   credits-=3000;turretRegenPurchased=true;registerShopUpgradePurchase();
   notice=tr('AUTONAPRAWA WIEŻYCZEK AKTYWNA','TURRET AUTO-REPAIR ACTIVE');noticeTime=2;
@@ -1342,6 +1403,7 @@ function buyTurretRegen(){
 }
 
 function buyUltraTurret(){
+  if(networkMode==='join'){requestRemoteUpgrade('ultra');return}
   if(!shopOpen||ultraTurretPurchased||credits<1500)return;
   if(turrets.some(t=>t.hp>0&&dist(t,player)<65)){notice=tr('NIE MOŻNA POSTAWIĆ ULTRA DZIAŁKA NA INNEJ WIEŻYCZCE','THE ULTRA TURRET CANNOT BE PLACED ON ANOTHER TURRET');noticeTime=2.4;toggleShop(false);return}
   credits-=1500;ultraTurretPurchased=true;registerShopUpgradePurchase();
@@ -1353,6 +1415,7 @@ function buyUltraTurret(){
 }
 
 function buyFireTrail(){
+  if(networkMode==='join'){requestRemoteUpgrade('fireTrail');return}
   const cost=350+fireTrailUpgradeLevel*100;
   if(!shopOpen||fireTrailUpgradeLevel>=15||credits<cost)return;
   credits-=cost;fireTrailUpgradeLevel++;fireTrailSpawn=0;registerShopUpgradePurchase();
@@ -1361,6 +1424,7 @@ function buyFireTrail(){
 }
 
 function buyRapidFire(){
+  if(networkMode==='join'){requestRemoteUpgrade('rapid');return}
   if(!shopOpen||rapidFirePurchased||credits<2000)return;
   credits-=2000;rapidFirePurchased=true;registerShopUpgradePurchase();
   notice=tr('HIPERNAPĘD BRONI AKTYWNY','WEAPON HYPERDRIVE ACTIVE');noticeTime=2;
@@ -1368,6 +1432,7 @@ function buyRapidFire(){
 }
 
 function buyDualShot(){
+  if(networkMode==='join'){requestRemoteUpgrade('dual');return}
   if(!shopOpen||dualShotPurchased||credits<3000)return;
   credits-=3000;dualShotPurchased=true;registerShopUpgradePurchase();
   notice=tr('DWUSTRONNY OSTRZAŁ AKTYWNY','TWO-WAY FIRE ACTIVE');noticeTime=2;
@@ -1375,6 +1440,7 @@ function buyDualShot(){
 }
 
 function buyPlayerHp(){
+  if(networkMode==='join'){requestRemoteUpgrade('hp');return}
   const cost=500+playerHpUpgradeLevel*250;
   if(!shopOpen||playerHpUpgradeLevel>=10||credits<cost)return;
   credits-=cost;playerHpUpgradeLevel++;player.maxHp+=10;player.hp+=10;registerShopUpgradePurchase();
@@ -1454,7 +1520,7 @@ function draw(){
 }
 
 function loop(t){const dt=Math.min(.033,(t-last)/1000||0);last=t;update(dt);draw();requestAnimationFrame(loop)}
-function begin(){if(networkMode==='join'){setNetworkStatus('Tylko host może rozpocząć grę.',true);return}if(networkMode==='host'&&!networkConnected){setNetworkStatus('Najpierw połącz drugiego gracza.',true);return}stopLobbyMusic();stopInGameMusic();gameOverSound.pause();gameOverSound.currentTime=0;reset();gemMultiplier=DIFFICULTIES[chosenDifficulty].gems*(doubleGemsPending?2:1);energyBuffMultiplier=doubleEnergyPending?2:1;if(doubleGemsPending){doubleGemsPending=false;try{localStorage.removeItem(DOUBLE_GEMS_STORAGE_KEY);localStorage.removeItem('neonStormDoubleScorePending')}catch{}updateDoubleGemsBuff()}if(doubleEnergyPending){doubleEnergyPending=false;try{localStorage.removeItem(DOUBLE_ENERGY_STORAGE_KEY)}catch{}updateDoubleEnergyBuff()}running=true;if(networkMode==='host')sendNetwork({type:'start',guestRole:remoteRole});startScreen.classList.add('hidden');gameOverScreen.classList.add('hidden');inGameMusicActive=true;playInGameMusic()}
+function begin(){if(networkMode==='join'){setNetworkStatus(tr('Tylko host może rozpocząć grę.','Only the host can start the game.'),true);return}if(networkMode==='host'&&!networkConnected){setNetworkStatus(tr('Najpierw połącz drugiego gracza.','Connect the other player first.'),true);return}stopLobbyMusic();stopInGameMusic();gameOverSound.pause();gameOverSound.currentTime=0;reset();gemMultiplier=DIFFICULTIES[chosenDifficulty].gems*(doubleGemsPending?2:1);energyBuffMultiplier=doubleEnergyPending?2:1;if(doubleGemsPending){doubleGemsPending=false;try{localStorage.removeItem(DOUBLE_GEMS_STORAGE_KEY);localStorage.removeItem('neonStormDoubleScorePending')}catch{}updateDoubleGemsBuff()}if(doubleEnergyPending){doubleEnergyPending=false;try{localStorage.removeItem(DOUBLE_ENERGY_STORAGE_KEY)}catch{}updateDoubleEnergyBuff()}running=true;if(networkMode==='host')sendNetwork({type:'start',guestRole:remoteRole});startScreen.classList.add('hidden');gameOverScreen.classList.add('hidden');inGameMusicActive=true;playInGameMusic()}
 function togglePause(force){
   if(!running)return;
   pauseOpen=typeof force==='boolean'?force:!pauseOpen;
@@ -1531,7 +1597,7 @@ joinModeBtn.addEventListener('click',()=>selectNetworkMode('join'));
 networkActionBtn.addEventListener('click',()=>networkMode==='host'?hostNetworkAction():joinNetworkAction());
 copyNetworkCodeBtn.addEventListener('click',async()=>{
   if(!networkOutput.value)return;
-  try{await navigator.clipboard.writeText(networkOutput.value);setNetworkStatus('Kod skopiowany do schowka.')}catch{networkOutput.focus();networkOutput.select();document.execCommand('copy');setNetworkStatus('Kod skopiowany do schowka.')}
+  try{await navigator.clipboard.writeText(networkOutput.value);setNetworkStatus(netTr('copied'))}catch{networkOutput.focus();networkOutput.select();document.execCommand('copy');setNetworkStatus(netTr('copied'))}
 });
 document.addEventListener('click',e=>{
   ensureLobbyMusic();

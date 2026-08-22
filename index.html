@@ -85,23 +85,23 @@
             <button class="difficulty" data-difficulty="mad"><strong data-i18n="difficulty_mad">SZALONY</strong><small data-i18n="difficulty_mad_desc">Klejnoty ×3 • wrogowie, HP i obrażenia ×2</small></button>
           </div>
           <section class="multiplayer-panel" aria-label="Multiplayer WebRTC">
-            <p class="difficulty-title">TRYB GRY</p>
+            <p class="difficulty-title" data-i18n="game_mode">TRYB GRY</p>
             <div class="multiplayer-modes">
-              <button id="soloModeBtn" class="active">SOLO</button>
-              <button id="hostModeBtn">HOSTUJ</button>
-              <button id="joinModeBtn">DOŁĄCZ</button>
+              <button id="soloModeBtn" class="active" data-i18n="mode_solo">SOLO</button>
+              <button id="hostModeBtn" data-i18n="mode_host">HOSTUJ</button>
+              <button id="joinModeBtn" data-i18n="mode_join">DOŁĄCZ</button>
             </div>
             <div id="multiplayerExchange" class="multiplayer-exchange hidden">
               <p id="networkStatus">Wybierz tryb połączenia.</p>
-              <label for="tailscaleIpInput">TWÓJ ADRES TAILSCALE</label>
+              <label for="tailscaleIpInput" data-i18n="your_tailscale_ip">TWÓJ ADRES TAILSCALE</label>
               <input id="tailscaleIpInput" type="text" inputmode="decimal" spellcheck="false" placeholder="100.x.x.x" />
               <label id="networkInputLabel" for="networkInput">KOD POŁĄCZENIA</label>
               <textarea id="networkInput" rows="3" spellcheck="false" placeholder="Wklej kod tutaj"></textarea>
               <div class="network-actions">
                 <button id="networkActionBtn" type="button">GENERUJ OFERTĘ</button>
-                <button id="copyNetworkCodeBtn" type="button" class="secondary-button" disabled>KOPIUJ KOD</button>
+                <button id="copyNetworkCodeBtn" type="button" class="secondary-button" disabled data-i18n="copy_code">KOPIUJ KOD</button>
               </div>
-              <label for="networkOutput">TWÓJ KOD</label>
+              <label for="networkOutput" data-i18n="your_code">TWÓJ KOD</label>
               <textarea id="networkOutput" rows="3" readonly placeholder="Kod pojawi się tutaj"></textarea>
             </div>
           </section>
@@ -213,6 +213,6 @@
       <span class="pulse"><i></i> <b data-i18n="online">SYSTEM ONLINE</b></span>
     </footer>
   </main>
-  <script src="game.js?v=2.5-tailscale-forced-1"></script>
+  <script src="game.js?v=2.5-coop-smooth-i18n-1"></script>
 </body>
 </html>
