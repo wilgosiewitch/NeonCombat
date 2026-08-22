@@ -600,7 +600,7 @@ function moveEnemyToward(enemy,target,speed,dt){
   moveBody(enemy,Math.cos(angle)*speed,Math.sin(angle)*speed,enemy.r,dt);
 }
 
-let networkMode='solo',peerConnection=null,dataChannel=null,networkConnected=false,remoteRole='medic';
+let networkMode='solo',peerConnection=null,controlChannel=null,stateChannel=null,networkConnected=false,remoteRole='medic';
 let remoteInput={dx:0,dy:0,angle:0,shoot:false,dash:false};
 let networkSendTimer=0,networkSnapshotTimer=0;
 const encodeSignal=value=>btoa(JSON.stringify(value));
@@ -611,8 +611,8 @@ const waitForIce=pc=>pc.iceGatheringState==='complete'?Promise.resolve():new Pro
 });
 function setNetworkStatus(message,error=false){networkStatus.textContent=message;networkStatus.classList.toggle('network-error',error)}
 function closePeer(){
-  if(dataChannel)dataChannel.close();if(peerConnection)peerConnection.close();
-  dataChannel=null;peerConnection=null;networkConnected=false;remotePlayer=null;
+  if(controlChannel)controlChannel.close();if(stateChannel)stateChannel.close();if(peerConnection)peerConnection.close();
+  controlChannel=null;stateChannel=null;peerConnection=null;networkConnected=false;remotePlayer=null;
 }
 function selectNetworkMode(mode){
   closePeer();networkMode=mode;networkInput.value='';networkOutput.value='';copyNetworkCodeBtn.disabled=true;networkActionBtn.disabled=false;
@@ -629,16 +629,20 @@ function selectNetworkMode(mode){
 function createPeer(){
   const pc=new RTCPeerConnection({iceServers:[]});
   pc.onconnectionstatechange=()=>{
-    networkConnected=pc.connectionState==='connected';
-    if(networkConnected)setNetworkStatus(networkMode==='host'?'Gracz dołączył. Możesz rozpocząć grę.':'Połączono z hostem. Czekaj na rozpoczęcie gry.');
-    else if(['failed','disconnected','closed'].includes(pc.connectionState))setNetworkStatus('Połączenie zostało przerwane.',true);
+    if(pc.connectionState==='connected')refreshNetworkConnection();
+    else if(['failed','disconnected','closed'].includes(pc.connectionState)){networkConnected=false;setNetworkStatus('Połączenie zostało przerwane.',true)}
   };
   return pc;
 }
+function refreshNetworkConnection(){
+  networkConnected=Boolean(controlChannel&&controlChannel.readyState==='open'&&stateChannel&&stateChannel.readyState==='open');
+  if(networkConnected){setNetworkStatus(networkMode==='host'?'Gracz dołączył. Możesz rozpocząć grę.':'Połączono z hostem. Czekaj na rozpoczęcie gry.');if(networkMode==='join')sendNetwork({type:'role',role:chosenRole})}
+}
 function attachDataChannel(channel){
-  dataChannel=channel;dataChannel.onopen=()=>{networkConnected=true;setNetworkStatus(networkMode==='host'?'Gracz dołączył. Możesz rozpocząć grę.':'Połączono z hostem. Czekaj na rozpoczęcie gry.');if(networkMode==='join')sendNetwork({type:'role',role:chosenRole})};
-  dataChannel.onclose=()=>{networkConnected=false;setNetworkStatus('Drugi gracz rozłączył się.',true)};
-  dataChannel.onmessage=event=>{
+  if(channel.label==='neon-state')stateChannel=channel;else controlChannel=channel;
+  channel.binaryType='arraybuffer';channel.onopen=refreshNetworkConnection;
+  channel.onclose=()=>{networkConnected=false;setNetworkStatus('Drugi gracz rozłączył się.',true)};
+  channel.onmessage=event=>{
     let message;try{message=JSON.parse(event.data)}catch{return}
     if(networkMode==='host'&&message.type==='input')remoteInput=message.input;
     if(networkMode==='host'&&message.type==='role'&&message.role){remoteRole=message.role;createRemotePlayer(remoteRole)}
@@ -650,7 +654,8 @@ function attachDataChannel(channel){
 async function hostNetworkAction(){
   try{
     if(!peerConnection){
-      peerConnection=createPeer();attachDataChannel(peerConnection.createDataChannel('neoncombat'));
+      peerConnection=createPeer();attachDataChannel(peerConnection.createDataChannel('neon-control'));
+      attachDataChannel(peerConnection.createDataChannel('neon-state',{ordered:false,maxRetransmits:0}));
       await peerConnection.setLocalDescription(await peerConnection.createOffer());await waitForIce(peerConnection);
       networkOutput.value=encodeSignal(peerConnection.localDescription);copyNetworkCodeBtn.disabled=false;
       networkActionBtn.textContent='ZATWIERDŹ ODPOWIEDŹ';setNetworkStatus('Wyślij ofertę. Potem wklej poniżej kod odpowiedzi.');
@@ -670,7 +675,11 @@ async function joinNetworkAction(){
     networkActionBtn.disabled=true;setNetworkStatus('Wyślij ten kod hostowi i poczekaj na połączenie.');
   }catch(error){setNetworkStatus(`Błąd: ${error.message}`,true)}
 }
-function sendNetwork(message){if(dataChannel&&dataChannel.readyState==='open'){if(message.type==='state'&&dataChannel.bufferedAmount>524288)return;dataChannel.send(JSON.stringify(message))}}
+function sendNetwork(message){
+  const channel=message.type==='state'||message.type==='input'?stateChannel:controlChannel;
+  if(!channel||channel.readyState!=='open'||channel.bufferedAmount>262144)return;
+  channel.send(JSON.stringify(message));
+}
 function createRemotePlayer(role='medic'){
   const maxHp=role==='tank'?125:role==='assassin'||role==='necromancer'?75:role==='assault'?85:role==='alchemist'?80:role==='sapper'?105:100;
   remotePlayer={x:PLAYER_START.x+70,y:PLAYER_START.y,r:17,hp:maxHp,maxHp,speed:role==='assassin'?390:role==='catclaw'?325:260,angle:0,moveX:1,moveY:0,fire:0,dash:0,inv:0,role};
@@ -687,10 +696,14 @@ function updateRemotePlayer(dt){
   }
   remoteInput.dash=false;
 }
-function networkState(){return {player,remotePlayer,bullets,enemies,particles:[],explosions:[],enemyBullets,pickups,obstacles,turrets,traps,lightningEffects:[],catLaserEffects:[],alchemyFields,bossWaves:bossWaves.map(w=>({...w,hitTurrets:undefined})),fireTrail,score,credits,wave,kills,shake,flash,notice,noticeTime,visualTime,bossSpawnTimer,bossSpawnPoint}}
+const networkEntity=entity=>{const copy={...entity};delete copy.path;delete copy.pathGoal;delete copy.hitTurrets;return copy};
+function networkState(){return {player,remotePlayer,bullets:bullets.map(networkEntity),enemies:enemies.map(networkEntity),particles:[],explosions:[],enemyBullets:enemyBullets.map(networkEntity),pickups,obstacles,turrets,traps,lightningEffects:[],catLaserEffects:[],alchemyFields,bossWaves:bossWaves.map(networkEntity),fireTrail,score,credits,wave,kills,shake,flash,notice,noticeTime,visualTime,bossSpawnTimer,bossSpawnPoint}}
 function applyNetworkState(state){
   if(!state)return;
-  player=state.remotePlayer||player;remotePlayer=state.player||remotePlayer;
+  const authoritativePlayer=state.remotePlayer;
+  if(authoritativePlayer&&player&&running){const error=Math.hypot(authoritativePlayer.x-player.x,authoritativePlayer.y-player.y),blend=error>180?1:.28;player={...authoritativePlayer,x:player.x+(authoritativePlayer.x-player.x)*blend,y:player.y+(authoritativePlayer.y-player.y)*blend}}
+  else player=authoritativePlayer||player;
+  remotePlayer=state.player||remotePlayer;
   bullets=state.bullets||[];enemies=state.enemies||[];particles=state.particles||[];explosions=state.explosions||[];enemyBullets=state.enemyBullets||[];pickups=state.pickups||[];obstacles=state.obstacles||[];turrets=state.turrets||[];traps=state.traps||[];lightningEffects=state.lightningEffects||[];catLaserEffects=state.catLaserEffects||[];alchemyFields=state.alchemyFields||[];bossWaves=state.bossWaves||[];fireTrail=state.fireTrail||[];
   score=state.score;credits=state.credits;wave=state.wave;kills=state.kills;shake=state.shake;flash=state.flash;notice=state.notice;noticeTime=state.noticeTime;visualTime=state.visualTime;bossSpawnTimer=state.bossSpawnTimer;bossSpawnPoint=state.bossSpawnPoint;
   if(player)camera={x:clamp(player.x-W/2,0,WORLD_W-W),y:clamp(player.y-H/2,0,WORLD_H-H)};
@@ -933,12 +946,18 @@ function update(dt){
   if(!running||shopOpen||pauseOpen)return;
   if(networkMode==='join'){
     visualTime+=dt;networkSendTimer-=dt;
-    if(networkSendTimer<=0){networkSendTimer=1/30;const dx=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),dy=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0);sendNetwork({type:'input',input:{dx,dy,angle:player?Math.atan2(mouse.y+camera.y-player.y,mouse.x+camera.x-player.x):0,shoot:mouse.down,dash:spaceDashQueued}});spaceDashQueued=false}
+    const dx=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),dy=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0),dashRequested=spaceDashQueued;
+    if(player){
+      const len=Math.hypot(dx,dy)||1;if(dx||dy){player.moveX=dx/len;player.moveY=dy/len}player.angle=Math.atan2(mouse.y+camera.y-player.y,mouse.x+camera.x-player.x);
+      player.dash=(player.dash||0)-dt;if(dashRequested&&player.dash<=0){player.dash=1.4;for(let i=0;i<5;i++)moveBody(player,player.moveX*23,player.moveY*23,player.r,1)}
+      moveBody(player,dx/len*player.speed,dy/len*player.speed,player.r,dt);
+    }
+    if(networkSendTimer<=0){networkSendTimer=1/40;sendNetwork({type:'input',input:{dx,dy,angle:player?player.angle:0,shoot:mouse.down,dash:dashRequested}});spaceDashQueued=false}
     if(player){camera.x=clamp(player.x-W/2,0,WORLD_W-W);camera.y=clamp(player.y-H/2,0,WORLD_H-H)}
     return;
   }
   visualTime+=dt;
-  if(networkMode==='host'&&networkConnected){updateRemotePlayer(dt);networkSnapshotTimer-=dt;if(networkSnapshotTimer<=0){networkSnapshotTimer=1/20;sendNetwork({type:'state',state:networkState()})}}
+  if(networkMode==='host'&&networkConnected){updateRemotePlayer(dt);networkSnapshotTimer-=dt;if(networkSnapshotTimer<=0){networkSnapshotTimer=1/30;sendNetwork({type:'state',state:networkState()})}}
   if(playerInsideTurret()){
     if(turretEscapeTimer<=0)turretEscapeTimer=5;
     turretEscapeTimer-=dt;if(turretEscapeTimer<=0)ejectPlayerFromTurret();
