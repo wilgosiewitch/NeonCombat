@@ -624,7 +624,7 @@ const encodeSignal=value=>btoa(JSON.stringify(value));
 const decodeSignal=value=>JSON.parse(atob(value.trim()));
 const waitForIce=pc=>pc.iceGatheringState==='complete'?Promise.resolve():new Promise(resolve=>{
   const done=()=>{if(pc.iceGatheringState==='complete'){pc.removeEventListener('icegatheringstatechange',done);resolve()}};
-  pc.addEventListener('icegatheringstatechange',done);setTimeout(resolve,5000);
+  pc.addEventListener('icegatheringstatechange',done);setTimeout(resolve,8000);
 });
 function setNetworkStatus(message,error=false){networkStatus.textContent=message;networkStatus.classList.toggle('network-error',error)}
 function closePeer(){
@@ -644,7 +644,11 @@ function selectNetworkMode(mode){
   }
 }
 function createPeer(){
-  const pc=new RTCPeerConnection({iceServers:[]});
+  const pc=new RTCPeerConnection({iceServers:[{urls:['stun:stun.cloudflare.com:3478','stun:stun.l.google.com:19302']}]});
+  pc.oniceconnectionstatechange=()=>{
+    if(pc.iceConnectionState==='checking')setNetworkStatus('Sprawdzanie dostępnych tras połączenia…');
+    if(pc.iceConnectionState==='failed')setNetworkStatus('Nie znaleziono bezpośredniej trasy. Sprawdź Tailscale/zaporę i wygeneruj nowe kody.',true);
+  };
   pc.onconnectionstatechange=()=>{
     if(pc.connectionState==='connected')refreshNetworkConnection();
     else if(['failed','disconnected','closed'].includes(pc.connectionState)){networkConnected=false;setNetworkStatus('Połączenie zostało przerwane.',true)}
@@ -681,6 +685,7 @@ async function hostNetworkAction(){
     }else{
       if(!networkInput.value.trim())throw new Error('Wklej kod odpowiedzi.');
       await peerConnection.setRemoteDescription(decodeSignal(networkInput.value));setNetworkStatus('Łączenie z drugim graczem…');
+      setTimeout(()=>{if(peerConnection&&!networkConnected)setNetworkStatus('Połączenie nie powiodło się. Włącz Tailscale na obu komputerach, sprawdź zaporę i utwórz nowe kody.',true)},15000);
     }
   }catch(error){setNetworkStatus(`Błąd: ${error.message}`,true)}
 }
