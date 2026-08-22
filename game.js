@@ -39,6 +39,7 @@ const hostModeBtn=document.getElementById('hostModeBtn');
 const joinModeBtn=document.getElementById('joinModeBtn');
 const multiplayerExchange=document.getElementById('multiplayerExchange');
 const networkStatus=document.getElementById('networkStatus');
+const tailscaleIpInput=document.getElementById('tailscaleIpInput');
 const networkInputLabel=document.getElementById('networkInputLabel');
 const networkInput=document.getElementById('networkInput');
 const networkOutput=document.getElementById('networkOutput');
@@ -622,6 +623,19 @@ let nextNetworkEntityId=1;
 let lastNetworkSnapshotAt=0;
 const encodeSignal=value=>btoa(JSON.stringify(value));
 const decodeSignal=value=>JSON.parse(atob(value.trim()));
+function validTailscaleIp(value){
+  const parts=value.trim().split('.').map(Number);
+  return parts.length===4&&parts.every(part=>Number.isInteger(part)&&part>=0&&part<=255)&&parts[0]===100&&parts[1]>=64&&parts[1]<=127;
+}
+function tailscaleDescription(description){
+  const tailscaleIp=tailscaleIpInput.value.trim();
+  if(!validTailscaleIp(tailscaleIp))throw new Error('Wpisz swój adres Tailscale z zakresu 100.64.0.0–100.127.255.255.');
+  const lines=description.sdp.split(/\r?\n/).map(line=>{
+    if(!line.startsWith('a=candidate:')||!line.includes(' typ host'))return line;
+    const parts=line.split(' ');if(parts.length>=8)parts[4]=tailscaleIp;return parts.join(' ');
+  });
+  return {type:description.type,sdp:lines.join('\r\n')};
+}
 const waitForIce=pc=>pc.iceGatheringState==='complete'?Promise.resolve():new Promise(resolve=>{
   const done=()=>{if(pc.iceGatheringState==='complete'){pc.removeEventListener('icegatheringstatechange',done);resolve()}};
   pc.addEventListener('icegatheringstatechange',done);setTimeout(resolve,8000);
@@ -680,7 +694,7 @@ async function hostNetworkAction(){
       peerConnection=createPeer();attachDataChannel(peerConnection.createDataChannel('neon-control'));
       attachDataChannel(peerConnection.createDataChannel('neon-state',{ordered:false,maxRetransmits:0}));
       await peerConnection.setLocalDescription(await peerConnection.createOffer());await waitForIce(peerConnection);
-      networkOutput.value=encodeSignal(peerConnection.localDescription);copyNetworkCodeBtn.disabled=false;
+      networkOutput.value=encodeSignal(tailscaleDescription(peerConnection.localDescription));copyNetworkCodeBtn.disabled=false;
       networkActionBtn.textContent='ZATWIERDŹ ODPOWIEDŹ';setNetworkStatus('Wyślij ofertę. Potem wklej poniżej kod odpowiedzi.');
     }else{
       if(!networkInput.value.trim())throw new Error('Wklej kod odpowiedzi.');
@@ -695,7 +709,7 @@ async function joinNetworkAction(){
     closePeer();peerConnection=createPeer();peerConnection.ondatachannel=event=>attachDataChannel(event.channel);
     await peerConnection.setRemoteDescription(decodeSignal(networkInput.value));
     await peerConnection.setLocalDescription(await peerConnection.createAnswer());await waitForIce(peerConnection);
-    networkOutput.value=encodeSignal(peerConnection.localDescription);copyNetworkCodeBtn.disabled=false;
+    networkOutput.value=encodeSignal(tailscaleDescription(peerConnection.localDescription));copyNetworkCodeBtn.disabled=false;
     networkActionBtn.disabled=true;setNetworkStatus('Wyślij ten kod hostowi i poczekaj na połączenie.');
   }catch(error){setNetworkStatus(`Błąd: ${error.message}`,true)}
 }
