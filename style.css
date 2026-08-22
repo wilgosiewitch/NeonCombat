@@ -17,6 +17,22 @@ h1 { font-size:clamp(28px,3vw,46px); letter-spacing:-1px; margin:0; line-height:
 .arena-wrap::before { top:8px; left:8px; border-top:2px solid var(--lime); border-left:2px solid var(--lime); }
 .arena-wrap::after { right:8px; bottom:8px; border-right:2px solid var(--lime); border-bottom:2px solid var(--lime); }
 canvas { width:100%; height:100%; display:block; cursor:crosshair; }
+.mobile-mode-setting { display:flex; align-items:center; gap:10px; margin:8px 0 12px; color:#a7afb6; font:700 10px 'JetBrains Mono',monospace; letter-spacing:.5px; }
+.mobile-mode-setting input { width:18px; height:18px; accent-color:var(--lime); }
+.lobby-mobile-mode { margin:6px 10px 10px; }
+.mobile-controls { position:absolute; inset:0; z-index:7; display:none; pointer-events:none; user-select:none; -webkit-user-select:none; touch-action:none; }
+body.mobile-mode .mobile-controls { display:block; }
+.mobile-stick { position:absolute; bottom:4%; width:19%; aspect-ratio:1; max-width:150px; max-height:150px; border:2px solid rgba(200,255,61,.65); border-radius:50%; background:rgba(5,9,12,.55); box-shadow:inset 0 0 22px rgba(200,255,61,.09); pointer-events:auto; touch-action:none; }
+.mobile-move-stick { left:3%; }
+.mobile-aim-stick { right:3%; border-color:rgba(88,255,209,.7); }
+.mobile-stick-knob { position:absolute; left:31%; top:31%; width:38%; height:38%; border-radius:50%; background:rgba(200,255,61,.7); box-shadow:0 0 15px rgba(200,255,61,.4); pointer-events:none; }
+.mobile-aim-stick .mobile-stick-knob { background:rgba(88,255,209,.75); box-shadow:0 0 15px rgba(88,255,209,.45); }
+.mobile-stick small { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); color:#07100b; font:800 clamp(6px,1vw,10px) 'JetBrains Mono',monospace; pointer-events:none; white-space:nowrap; }
+.mobile-action-buttons { position:absolute; right:2.5%; bottom:28%; display:grid; grid-template-columns:repeat(3,minmax(42px,64px)); gap:7px; pointer-events:auto; }
+.mobile-action-buttons button { display:grid; place-items:center; min-width:0; min-height:42px; margin:0; padding:5px; border:1px solid rgba(200,255,61,.7); border-radius:8px; background:rgba(9,15,18,.78); color:var(--lime); box-shadow:none; font:800 clamp(7px,1vw,11px) 'JetBrains Mono',monospace; touch-action:manipulation; }
+.mobile-action-buttons button:active { transform:scale(.94); background:rgba(200,255,61,.25); }
+.mobile-action-buttons button small { display:block; color:#87948c; font-size:.75em; }
+.mobile-action-buttons button b { font:inherit; }
 .overlay { position:absolute; top:0; left:0; z-index:10; display:grid; place-items:center; width:1280px; height:720px; padding:12px 0; overflow:hidden; transform:scale(var(--game-scale,1)); transform-origin:top left; background:radial-gradient(circle at center,rgba(12,18,22,.4),rgba(5,7,10,.93)); backdrop-filter:blur(3px); }
 .overlay.hidden { display:none; }
 .panel { width:min(680px,92%); border-left:2px solid var(--lime); padding:20px 28px 24px; background:linear-gradient(90deg,rgba(15,20,25,.95),rgba(15,20,25,.55)); }
@@ -95,6 +111,7 @@ button span { margin-left:22px; }
 .multiplayer-exchange.hidden { display:none; }
 .multiplayer-exchange p { margin:0; color:#91aaa4; font:700 9px/1.45 'JetBrains Mono',monospace; }
 .multiplayer-exchange p.network-error { color:#ff6978; }
+.multiplayer-exchange .tailscale-hint { color:#ffd84d; font-size:8px; }
 .multiplayer-exchange label { color:#58ffd1; font:700 8px 'JetBrains Mono',monospace; letter-spacing:1px; }
 .multiplayer-exchange textarea,.multiplayer-exchange input { width:100%; padding:8px; border:1px solid #31534e; outline:0; background:#07110f; color:#baffeb; font:400 8px/1.35 'JetBrains Mono',monospace; overflow-wrap:anywhere; }
 .multiplayer-exchange textarea { resize:vertical; min-height:48px; }

@@ -26,7 +26,19 @@
     </header>
 
     <section class="arena-wrap">
-      <canvas id="game" width="1280" height="720" aria-label="Gra Neonowy Szturm"></canvas>
+      <canvas id="game" width="1280" height="720" aria-label="Gra Neonowy Szturm" data-i18n-aria-label="game_aria"></canvas>
+      <div id="mobileControls" class="mobile-controls" aria-label="Mobile controls">
+        <div id="mobileMoveStick" class="mobile-stick mobile-move-stick"><span class="mobile-stick-knob"></span><small>WASD</small></div>
+        <div class="mobile-action-buttons">
+          <button type="button" data-mobile-action="pause">Ⅱ<small>ESC</small></button>
+          <button type="button" data-mobile-action="shop"><b data-i18n="shop">SKLEP</b><small>B</small></button>
+          <button type="button" data-mobile-action="ability"><b data-i18n="ability">ZDOLNOŚĆ</b><small>E</small></button>
+          <button type="button" data-mobile-action="upgrade"><b data-i18n="mobile_upgrade">ULEPSZ</b><small>X</small></button>
+          <button type="button" data-mobile-action="turret"><b data-i18n="turret">WIEŻYCZKA</b><small>Z</small></button>
+          <button type="button" data-mobile-action="dash"><b>DASH</b><small>SPACE</small></button>
+        </div>
+        <div id="mobileAimStick" class="mobile-stick mobile-aim-stick"><span class="mobile-stick-knob"></span><small data-i18n="mobile_aim_fire">CEL / STRZAŁ</small></div>
+      </div>
       <div id="pauseScreen" class="overlay pause-overlay hidden">
         <div class="panel pause-panel">
           <p class="eyebrow" data-i18n="pause_status">GRA WSTRZYMANA</p>
@@ -35,12 +47,13 @@
             <span data-i18n="game_volume">DŹWIĘKI GRY</span>
             <output id="gameVolumeValue">100%</output>
           </label>
-          <input id="gameVolume" type="range" min="0" max="100" value="100" aria-label="Głośność gry" />
+          <input id="gameVolume" type="range" min="0" max="100" value="100" aria-label="Głośność gry" data-i18n-aria-label="game_volume" />
           <label class="volume-control" for="musicVolume">
             <span data-i18n="music_volume">GŁOŚNOŚĆ MUZYKI</span>
             <output id="musicVolumeValue">100%</output>
           </label>
-          <input id="musicVolume" type="range" min="0" max="100" value="100" aria-label="Głośność muzyki" />
+          <input id="musicVolume" type="range" min="0" max="100" value="100" aria-label="Głośność muzyki" data-i18n-aria-label="music_volume" />
+          <label class="mobile-mode-setting"><input id="pauseMobileMode" type="checkbox" /><span data-i18n="mobile_mode">TRYB MOBILNY — STEROWANIE NA EKRANIE</span></label>
           <div class="pause-actions">
             <button id="resumeBtn"><i data-i18n="resume_game">WRÓĆ DO GRY</i> <span>[ESC]</span></button>
             <button id="lobbyBtn" class="secondary-button"><i data-i18n="enter_lobby">WEJDŹ DO LOBBY</i> <span>←</span></button>
@@ -52,15 +65,16 @@
           <div class="language-picker"><button data-lang="pl" class="active">PL</button><button data-lang="en">EN</button></div>
           <div class="lobby-volume-settings">
             <label for="lobbyGameVolume"><span data-i18n="game_volume">DŹWIĘKI GRY</span><output id="lobbyGameVolumeValue">100%</output></label>
-            <input id="lobbyGameVolume" type="range" min="0" max="100" value="100" aria-label="Głośność gry" />
+            <input id="lobbyGameVolume" type="range" min="0" max="100" value="100" aria-label="Głośność gry" data-i18n-aria-label="game_volume" />
             <label for="lobbyMusicVolume"><span data-i18n="music_volume">GŁOŚNOŚĆ MUZYKI</span><output id="lobbyMusicVolumeValue">100%</output></label>
-            <input id="lobbyMusicVolume" type="range" min="0" max="100" value="100" aria-label="Głośność muzyki" />
+            <input id="lobbyMusicVolume" type="range" min="0" max="100" value="100" aria-label="Głośność muzyki" data-i18n-aria-label="music_volume" />
           </div>
+          <label class="mobile-mode-setting lobby-mobile-mode"><input id="lobbyMobileMode" type="checkbox" /><span data-i18n="mobile_mode">TRYB MOBILNY — STEROWANIE NA EKRANIE</span></label>
           <div class="gem-balance"><span class="gem-icon">◆</span><span data-i18n="gems">KLEJNOTY</span><strong id="gemBalance">0</strong></div>
           <p class="eyebrow" data-i18n="transmission">TRANSMISJA PRZECHWYCONA</p>
           <h2 data-i18n="hero">Przetrwaj.<br><em>Zniszcz ich.</em></h2>
           <p data-i18n="intro">Wrogie jednostki namierzyły twoją pozycję. Pozostań w ruchu, unikaj pocisków i oczyść kolejne fale.</p>
-          <div class="roles" aria-label="Wybór roli">
+          <div class="roles" aria-label="Wybór roli" data-i18n-aria-label="role_selection">
             <button class="role active" data-role="medic"><strong data-i18n="role_medic">TECHNIK</strong><small data-i18n="desc_medic">[E] Naprawia wieżyczkę co 10 s</small></button>
             <button class="role" data-role="tank"><strong>TANK</strong><small data-i18n="desc_tank">+25 punktów zdrowia</small></button>
             <button class="role" data-role="ghost"><strong data-i18n="role_ghost">DUCH</strong><small data-i18n="desc_ghost">[E] Niewidzialność na 7 s</small></button>
@@ -78,7 +92,7 @@
             <button class="role locked" data-role="madman" aria-disabled="true"><strong data-i18n="role_madman">SZALENIEC</strong><small data-i18n="desc_madman">Podwójny strzał • [E] wybuch</small><span class="role-lock">KUP ◆ 1800</span></button>
           </div>
           <p class="difficulty-title" data-i18n="difficulty_title">POZIOM TRUDNOŚCI</p>
-          <div class="difficulties" aria-label="Wybór poziomu trudności">
+          <div class="difficulties" aria-label="Wybór poziomu trudności" data-i18n-aria-label="difficulty_selection">
             <button class="difficulty" data-difficulty="easy"><strong data-i18n="difficulty_easy">ŁATWY</strong><small data-i18n="difficulty_easy_desc">Klejnoty ×0,5 • wrogowie ×0,5</small></button>
             <button class="difficulty active" data-difficulty="normal"><strong data-i18n="difficulty_normal">NORMALNY</strong><small data-i18n="difficulty_normal_desc">Standardowe zasady • klejnoty ×1</small></button>
             <button class="difficulty" data-difficulty="hard"><strong data-i18n="difficulty_hard">TRUDNY</strong><small data-i18n="difficulty_hard_desc">Klejnoty, wrogowie, HP i obrażenia ×1,5</small></button>
@@ -92,17 +106,20 @@
               <button id="joinModeBtn" data-i18n="mode_join">DOŁĄCZ</button>
             </div>
             <div id="multiplayerExchange" class="multiplayer-exchange hidden">
-              <p id="networkStatus">Wybierz tryb połączenia.</p>
+              <p id="networkStatus" data-i18n="choose_connection_mode">Wybierz tryb połączenia.</p>
+              <label for="playerNicknameInput" data-i18n="your_nickname">TWÓJ NICK</label>
+              <input id="playerNicknameInput" type="text" maxlength="16" autocomplete="nickname" spellcheck="false" placeholder="Gracz" data-i18n-placeholder="player_placeholder" />
               <label for="tailscaleIpInput" data-i18n="your_tailscale_ip">TWÓJ ADRES TAILSCALE</label>
               <input id="tailscaleIpInput" type="text" inputmode="decimal" spellcheck="false" placeholder="100.x.x.x" />
+              <p class="tailscale-hint" data-i18n="tailscale_same_tailnet">Obaj gracze muszą być połączeni z tym samym tailnetem Tailscale.</p>
               <label id="networkInputLabel" for="networkInput">KOD POŁĄCZENIA</label>
-              <textarea id="networkInput" rows="3" spellcheck="false" placeholder="Wklej kod tutaj"></textarea>
+              <textarea id="networkInput" rows="3" spellcheck="false" placeholder="Wklej kod tutaj" data-i18n-placeholder="paste_code"></textarea>
               <div class="network-actions">
                 <button id="networkActionBtn" type="button">GENERUJ OFERTĘ</button>
                 <button id="copyNetworkCodeBtn" type="button" class="secondary-button" disabled data-i18n="copy_code">KOPIUJ KOD</button>
               </div>
               <label for="networkOutput" data-i18n="your_code">TWÓJ KOD</label>
-              <textarea id="networkOutput" rows="3" readonly placeholder="Kod pojawi się tutaj"></textarea>
+              <textarea id="networkOutput" rows="3" readonly placeholder="Kod pojawi się tutaj" data-i18n-placeholder="code_appears"></textarea>
             </div>
           </section>
           <button id="startBtn"><i data-i18n="start">WEJDŹ NA ARENĘ</i> <span>→</span></button>
@@ -213,6 +230,6 @@
       <span class="pulse"><i></i> <b data-i18n="online">SYSTEM ONLINE</b></span>
     </footer>
   </main>
-  <script src="game.js?v=2.5-coop-smooth-i18n-1"></script>
+  <script src="game.js?v=2.9-explosion-performance-1"></script>
 </body>
 </html>
